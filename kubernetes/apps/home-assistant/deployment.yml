@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: home-assistant
+  labels:
+    app: home-assistant
+spec:
+  selector:
+    matchLabels:
+      app: home-assistant
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: home-assistant
+    spec:
+      volumes:
+      - name: home-assistant-config
+        nfs:
+          path: /mnt/ssd/k8s/home-assistant/config
+          server: 10.10.3.2
+
+      restartPolicy: Always
+      dnsConfig:
+        options:
+        - name: ndots
+          value: "1"
+      containers:
+      - name: home-assistant
+        image: ghcr.io/home-assistant/home-assistant:stable
+        resources:
+          requests:
+            cpu: 100m
+            memory: 500M
+          limits:
+            memory: 500M
+
+        env:
+        - name: TZ
+          value: "GMT"
+        - name: PUID
+          value: "1000"
+        - name: PGID
+          value: "1000"
+
+        ports:
+        - containerPort: 8123
+          name: home-assistant
+
+        volumeMounts:
+        - mountPath: /config
+          name: home-assistant-config
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: home-assistant
+  labels:
+    app: home-assistant
+spec:
+  type: ClusterIP
+  ports:
+  - name: home-assistant
+    port: 8123
+    targetPort: 8123
+  selector:
+    app: home-assistant

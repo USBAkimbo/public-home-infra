@@ -1,0 +1,26 @@
+- name: Create Frigate directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: 0770
+    recurse: yes
+  loop:
+    - /opt/dockervolumes/frigate
+    - /opt/dockervolumes/frigate/config
+
+- name: Copy over docker-compose.yml
+  template:
+    src: docker-compose.yml.j2
+    dest: /opt/dockervolumes/frigate/docker-compose.yml
+    mode: 0770
+
+- name: Copy Frigate config
+  copy:
+    src: config.yml
+    dest: /opt/dockervolumes/frigate/config/config.yml
+    mode: 0770
+
+- name: Start compose stack
+  community.docker.docker_compose_v2:
+    project_src: /opt/dockervolumes/frigate
+    project_name: frigate

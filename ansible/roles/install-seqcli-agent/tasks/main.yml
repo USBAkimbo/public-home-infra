@@ -1,0 +1,64 @@
+- name: Ensure wget is installed
+  ansible.builtin.apt:
+    name: wget
+    state: latest
+    cache_valid_time: 3600
+
+- name: Create seqcli folder
+  ansible.builtin.file:
+    path: "/opt/seqcli"
+    state: directory
+
+- name: Check if current seqcli version is installed
+  ansible.builtin.stat:
+    path: "/opt/seqcli/seqcli-{{ SEQCLI_VERSION }}-linux-x64"
+  register: seqcli_current_installed
+
+- name: Download seqcli
+  ansible.builtin.get_url:
+    url: "https://github.com/datalust/seqcli/releases/download/v{{ SEQCLI_VERSION }}/seqcli-{{ SEQCLI_VERSION }}-linux-x64.tar.gz"
+    dest: "/opt/seqcli/seqcli-{{ SEQCLI_VERSION }}-linux-x64.tar.gz"
+  when: not seqcli_current_installed.stat.exists
+
+- name: Create seqcli version folder
+  ansible.builtin.file:
+    path: "/opt/seqcli/seqcli-{{ SEQCLI_VERSION }}-linux-x64"
+    state: directory
+    mode: '700'
+    recurse: true
+  when: not seqcli_current_installed.stat.exists
+
+- name: Extract seqcli gzip
+  ansible.builtin.unarchive:
+    src: "/opt/seqcli/seqcli-{{ SEQCLI_VERSION }}-linux-x64.tar.gz"
+    dest: "/opt/seqcli/"
+    remote_src: true
+  when: not seqcli_current_installed.stat.exists
+
+- name: Cleanup gzip
+  ansible.builtin.file:
+    path: "/opt/seqcli/seqcli-{{ SEQCLI_VERSION }}-linux-x64.tar.gz"
+    state: absent
+  when: not seqcli_current_installed.stat.exists
+
+- name: Copy log ingest script
+  ansible.builtin.template:
+    src: seqcli-log-ingest.sh.j2
+    dest: "/opt/seqcli/seqcli-{{ SEQCLI_VERSION }}-linux-x64/seqcli-log-ingest.sh"
+
+- name: Copy log ingest service
+  ansible.builtin.template:
+    src: seqcli-log-ingest.service.j2
+    dest: /etc/systemd/system/seqcli-log-ingest.service
+  register: systemd_service
+
+- name: Reload systemctl daemons
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: systemd_service.changed
+
+- name: Ensure ingest service is running
+  ansible.builtin.systemd:
+    name: seqcli-log-ingest
+    state: restarted
+    enabled: true

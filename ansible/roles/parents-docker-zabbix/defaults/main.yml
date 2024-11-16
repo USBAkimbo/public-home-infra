@@ -1,0 +1,11 @@
+# Compose
+ZABBIX_VERSION: ubuntu-7.0.5
+MARIA_DB_VERSION: 11.3
+ZABBIX_DATA_PATH: /opt/dockervolumes/zabbix
+MYSQL_USER: zabbix
+MYSQL_PASSWORD: zabbix
+MYSQL_ROOT_PASSWORD: zabbix
+ZBX_STARTPINGERS: 4
+
+# Backup script
+BACKUP_SCRIPT_PATH: /opt/dockervolumes/zabbix/zabbix-db/backups

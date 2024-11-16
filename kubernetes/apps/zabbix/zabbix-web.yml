@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zabbix-web
+  labels:
+    app: zabbix-web
+spec:
+  selector:
+    matchLabels:
+      app: zabbix-web
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: zabbix-web
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - zabbix-web
+            topologyKey: "kubernetes.io/hostname"
+      restartPolicy: Always
+      dnsConfig:
+        options:
+        - name: ndots
+          value: "1"
+      containers:
+      - name: zabbix-web
+        image: zabbix/zabbix-web-nginx-mysql:ubuntu-7.0.5
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100M
+          limits:
+            memory: 500M
+
+        env:
+        - name: MYSQL_USER
+          value: zabbix
+        - name: MYSQL_PASSWORD
+          value: zabbix
+        - name: DB_SERVER_HOST
+          value: zabbix-db
+        - name: ZBX_SERVER_NAME
+          value: "Zabbix Kubernetes"
+        - name: PHP_TZ
+          value: Europe/London
+
+        ports:
+        - containerPort: 8080
+          name: zabbix-web
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: zabbix-web
+  labels:
+    app: zabbix-web
+spec:
+  type: ClusterIP
+  ports:
+  - name: zabbix-web
+    port: 8080
+    targetPort: 8080
+  selector:
+    app: zabbix-web

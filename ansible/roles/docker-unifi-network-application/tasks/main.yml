@@ -1,0 +1,33 @@
+https://github.com/linuxserver/docker-unifi-network-application
+
+- name: Create Zabbix directories
+  file:
+    path: /opt/dockervolumes/zabbix/zabbix-db
+    state: directory
+
+- name: Copy over docker-compose.yml
+  template:
+    src: docker-compose.yml.j2
+    dest: /opt/dockervolumes/zabbix/docker-compose.yml
+
+- name: Create docker proxy network
+  community.docker.docker_network:
+    name: proxy
+
+- name: Start compose stack
+  community.docker.docker_compose_v2:
+    project_src: /opt/dockervolumes/zabbix
+    project_name: zabbix
+
+- name: Copy over backup script
+  template:
+    src: mariadb-backup.sh.j2
+    dest: /opt/dockervolumes/zabbix/zabbix-db/mariadb-backup.sh
+
+- name: Create backup cron job daily at 04:00
+  cron:
+    cron_file: zabbix-mariadb-backup
+    minute: "0"
+    hour: "4"
+    user: root
+    job: /opt/dockervolumes/zabbix/zabbix-db/mariadb-backup.sh

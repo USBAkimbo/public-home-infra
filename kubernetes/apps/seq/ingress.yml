@@ -1,0 +1,51 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: seq-ingress
+  annotations:
+    cert-manager.io/cluster-issuer: cloudflare-issuer
+
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: seq.greenappleton.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: seq-web
+            port:
+              name: seq-web
+  tls:
+  - hosts:
+    - seq.greenappleton.com
+    secretName: seq.greenappleton.com
+
+---
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: seq-ingest-ingress
+  annotations:
+    cert-manager.io/cluster-issuer: cloudflare-issuer
+
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: seq-ingest.greenappleton.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: seq-ingest
+            port:
+              name: seq-ingest
+  tls:
+  - hosts:
+    - seq-ingest.greenappleton.com
+    secretName: seq-ingest.greenappleton.com

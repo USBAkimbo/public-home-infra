@@ -1,0 +1,4 @@
+- name: Uninstall rsyslog
+  apt:
+    name: rsyslog
+    state: absent

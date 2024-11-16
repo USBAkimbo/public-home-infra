@@ -1,0 +1,11 @@
+127.0.0.1       localhost
+::1             localhost ip6-localhost ip6-loopback
+ff02::1         ip6-allnodes
+ff02::2         ip6-allrouters
+# --- BEGIN PVE ---
+10.10.9.1 p-h-dns-01.greenappleton.com p-h-dns-01
+# --- END PVE ---
+
+# Ansible managed
+10.10.3.10 seq.greenappleton.com
+# Ansible managed

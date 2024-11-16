@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: filebrowser
+  labels:
+    app: filebrowser
+spec:
+  selector:
+    matchLabels:
+      app: filebrowser
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: filebrowser
+    spec:
+      volumes:
+      - name: config
+        configMap:
+          name: filebrowser-configmap
+
+      - name: filebrowser-db
+        nfs:
+          path: /mnt/hdd/k8s/filebrowser/db
+          server: 10.10.3.2
+
+      - name: downloads
+        nfs:
+          path: /mnt/hdd/downloads
+          server: 10.10.3.2
+
+      restartPolicy: Always
+      dnsConfig:
+        options:
+        - name: ndots
+          value: "1"
+      containers:
+      - name: filebrowser
+        image: filebrowser/filebrowser:v2.31.2
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100M
+          limits:
+            memory: 500M
+
+        ports:
+        - containerPort: 80
+          name: filebrowser
+
+        volumeMounts:
+        - mountPath: /.filebrowser.json
+          name: config
+          subPath: .filebrowser.json
+
+        - mountPath: /db
+          name: filebrowser-db
+
+        - mountPath: /srv/downloads
+          name: downloads
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: filebrowser
+  labels:
+    app: filebrowser
+spec:
+  type: ClusterIP
+  ports:
+  - name: filebrowser
+    port: 80
+    targetPort: 80
+  selector:
+    app: filebrowser

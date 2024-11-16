@@ -1,0 +1,10 @@
+- hosts: proxmox_hosts
+  become: yes
+  roles:
+    - roles/install-zabbix-agent2
+    - roles/install-sensors
+    - roles/install-fluent-bit-seq-agent
+    - roles/install-rsyslog
+    #- roles/proxmox-disk-watchdog
+  vars:
+    WEBHOOK_URL: 

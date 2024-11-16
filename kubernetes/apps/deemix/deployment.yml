@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deemix
+  labels:
+    app: deemix
+spec:
+  selector:
+    matchLabels:
+      app: deemix
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: deemix
+    spec:
+      volumes:
+      - name: deemix-config
+        nfs:
+          path: /mnt/ssd/k8s/deemix/config
+          server: 10.10.3.2
+      - name: deemix-downloads
+        nfs:
+          path: /mnt/hdd/downloads/deemix
+          server: 10.10.3.2
+
+      restartPolicy: Always
+      dnsConfig:
+        options:
+        - name: ndots
+          value: "1"
+      containers:
+      - name: deemix
+        image: registry.gitlab.com/bockiii/deemix-docker
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100M
+          limits:
+            memory: 500M
+
+        env:
+        - name: PGID
+          value: "1000"
+        - name: PUID
+          value: "1000"
+        - name: UMASK_SET
+          value: "022"
+        - name: DEEMIX_SINGLE_USER
+          value: "true"
+
+        ports:
+        - containerPort: 6595
+          name: deemix
+
+        volumeMounts:
+        - mountPath: /config
+          name: deemix-config
+        - mountPath: /downloads
+          name: deemix-downloads
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: deemix
+  labels:
+    app: deemix
+spec:
+  type: ClusterIP
+  ports:
+  - name: deemix
+    port: 6595
+    targetPort: 6595
+  selector:
+    app: deemix

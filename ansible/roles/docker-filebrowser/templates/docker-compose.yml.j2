@@ -1,0 +1,22 @@
+services:
+  filebrowser:
+    container_name: filebrowser
+    image: filebrowser/filebrowser
+    restart: always
+    user: "1000"
+    volumes:
+      - /opt/dockervolumes/filebrowser/db/filebrowser.db:/database.db
+      - /mnt/data/share:/srv
+    ports:
+      - 81:80
+    networks:
+    - proxy
+    labels:
+    - traefik.enable=true
+    - traefik.http.routers.deemix.rule=Host(`{{ FILEBROWSER_DNS_NAME }}`)
+    - traefik.http.routers.deemix.entrypoints=websecure
+    - traefik.http.routers.deemix.tls.certresolver=cloudflare
+
+networks:
+  proxy:
+    external: true

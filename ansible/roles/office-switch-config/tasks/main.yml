@@ -1,0 +1,14 @@
+- name: Apply switch config from template
+  cisco.ios.config:
+    src: config.j2
+    save_when: changed
+
+- name: Apply banner config from template
+  cisco.ios.banner:
+    banner: login
+    text: |
+      ===================================
+      Device Name:    OFFICE-SW1
+      Make:           Cisco
+      Model:          WS-C2960G-8TC-L
+      ===================================

@@ -1,0 +1,69 @@
+services:
+  # Zabbix database
+  zabbix-db:
+    container_name: zabbix-db
+    image: mariadb:{{ MARIA_DB_VERSION }}
+    restart: always
+    volumes:
+      - {{ ZABBIX_DATA_PATH }}/zabbix-db/mariadb:/var/lib/mysql:rw
+      - {{ ZABBIX_DATA_PATH }}/zabbix-db/backups:/backups
+    command:
+      - mariadbd
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_bin
+      - --default-authentication-plugin=mysql_native_password
+    environment:
+      - MYSQL_USER={{ MYSQL_USER }}
+      - MYSQL_PASSWORD={{ MYSQL_PASSWORD }}
+      - MYSQL_ROOT_PASSWORD={{ MYSQL_ROOT_PASSWORD }}
+    stop_grace_period: 1m
+    labels:
+      - com.centurylinklabs.watchtower.enable=false
+
+  # Zabbix server
+  zabbix-server:
+    container_name: zabbix-server
+    image: zabbix/zabbix-server-mysql:{{ ZABBIX_VERSION }}
+    restart: always
+    ports:
+      - 10051:10051
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - MYSQL_ROOT_USER=root
+      - MYSQL_ROOT_PASSWORD={{ MYSQL_ROOT_PASSWORD }}
+      - DB_SERVER_HOST=zabbix-db
+      - ZBX_STARTPINGERS={{ ZBX_STARTPINGERS }}
+    depends_on:
+      - zabbix-db
+    stop_grace_period: 30s
+    sysctls:
+      - net.ipv4.ip_local_port_range=1024 65000
+      - net.ipv4.conf.all.accept_redirects=0
+      - net.ipv4.conf.all.secure_redirects=0
+      - net.ipv4.conf.all.send_redirects=0
+    labels:
+      - com.centurylinklabs.watchtower.enable=false
+
+  # Zabbix web UI
+  zabbix-web:
+    container_name: zabbix-web
+    image: zabbix/zabbix-web-nginx-mysql:{{ ZABBIX_VERSION }}
+    restart: always
+    ports:
+      - 8282:8080
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - MYSQL_USER={{ MYSQL_USER }}
+      - MYSQL_PASSWORD={{ MYSQL_PASSWORD }}
+      - DB_SERVER_HOST=zabbix-db
+      - ZBX_SERVER_HOST=zabbix-server
+      - ZBX_SERVER_NAME=Parents Zabbix Docker
+      - PHP_TZ=Europe/London
+    depends_on:
+      - zabbix-db
+      - zabbix-server
+    stop_grace_period: 10s
+    labels:
+      - com.centurylinklabs.watchtower.enable=false

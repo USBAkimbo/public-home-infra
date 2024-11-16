@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# Get all log files, tail them and ship the logs to Seq
+for i in $(find /var/log -type f -name "*.log"); do
+    tail -c 0 -F "$i" | /opt/seqcli/seqcli-{{ SEQCLI_VERSION }}-linux-x64/seqcli ingest -p hostname=$(hostname) -p path="$i" --verbose --invalid-data=ignore --server={{ SEQ_SERVER_URL }} --apikey={{ SEQ_API_KEY}} &
+done
+
+# Keep the script running
+while true; do
+    sleep 3600
+done

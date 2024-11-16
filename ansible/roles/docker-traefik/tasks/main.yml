@@ -1,0 +1,28 @@
+- name: Create Traefik directory
+  file:
+    path: /opt/dockervolumes/traefik
+    state: directory
+    recurse: yes
+    mode: '770'
+
+- name: Create LetsEncrypt directory
+  file:
+    path: /opt/dockervolumes/traefik/letsencrypt
+    state: directory
+    recurse: yes
+    mode: '600' # Required for Traefik to work
+
+- name: Copy over docker-compose.yml
+  template:
+    src: docker-compose.yml.j2
+    dest: /opt/dockervolumes/traefik/docker-compose.yml
+    mode: '770'
+
+- name: Create Traefik proxy network
+  community.docker.docker_network:
+    name: proxy
+
+- name: Start compose stack
+  community.docker.docker_compose_v2:
+    project_src: /opt/dockervolumes/traefik
+    project_name: traefik

@@ -1,0 +1,17 @@
+- name: Create WireGuard directory
+  file:
+    path: /opt/dockervolumes/wireguard/config
+    state: directory
+    mode: '770'
+    recurse: true
+
+- name: Copy over docker-compose.yml
+  template:
+    src: docker-compose.yml.j2
+    dest: /opt/dockervolumes/wireguard/docker-compose.yml
+    mode: 0770
+
+- name: Start compose stack
+  community.docker.docker_compose_v2:
+    project_src: /opt/dockervolumes/wireguard
+    project_name: wireguard

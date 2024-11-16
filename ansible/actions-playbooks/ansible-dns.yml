@@ -1,0 +1,8 @@
+- hosts: dns_servers
+  become: yes
+  roles:
+    - roles/enable-auto-update
+    - roles/install-zabbix-agent2
+    - roles/set-pihole-dns
+    - roles/set-pihole-hosts
+    - roles/install-fluent-bit-seq-agent

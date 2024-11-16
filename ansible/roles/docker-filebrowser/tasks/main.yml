@@ -1,0 +1,35 @@
+- name: Create Filebrowser directory
+  file:
+    path: "{{ item }}"
+    state: directory
+    recurse: yes
+    mode: '770'
+  loop:
+    - /opt/dockervolumes/filebrowser
+    - /opt/dockervolumes/filebrowser/db
+
+- name: Check if Filebrowser DB exists
+  stat:
+    path: /opt/dockervolumes/filebrowser/db/filebrowser.db
+  register: filebrowser_db
+
+- name: Create Filebrowser DB if it's missing
+  file:
+    path: /opt/dockervolumes/filebrowser/db/filebrowser.db
+    state: touch
+  when: not filebrowser_db.stat.exists
+
+- name: Create Traefik proxy network
+  community.docker.docker_network:
+    name: proxy
+
+- name: Copy over docker-compose.yml
+  template:
+    src: docker-compose.yml.j2
+    dest: /opt/dockervolumes/filebrowser/docker-compose.yml
+    mode: '770'
+
+- name: Start compose stack
+  community.docker.docker_compose_v2:
+    project_src: /opt/dockervolumes/filebrowser
+    project_name: filebrowser

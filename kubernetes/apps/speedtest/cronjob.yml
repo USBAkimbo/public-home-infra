@@ -1,0 +1,30 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: speedtest
+spec:
+  schedule: "0 * * * *" # Every hour
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          volumes:
+          - name: speedtest
+            nfs:
+              path: /mnt/ssd/speedtest
+              server: 10.10.3.2
+          restartPolicy: OnFailure
+          containers:
+          - name: speedtest
+            image: 77cla77/speedtest:2024-06-08
+            volumeMounts:
+            - mountPath: /speedtest
+              name: speedtest
+            command: ["/bin/sh", "-c"]
+            args:
+            - |
+              /librespeed-cli --simple > /tmp/speedtest-temp 2>&1 # Run speedtest and output to temp file
+              cat /tmp/speedtest-temp | awk '/Download rate/ {print $3}' > /speedtest/last-download-test # Echo download speed to file (Mbps)
+              cat /tmp/speedtest-temp | awk '/Upload rate/ {print $3}' > /speedtest/last-upload-test # Echo upload speed to file (Mbps)
+              cat /tmp/speedtest-temp | awk '/Ping/ {print $2}' > /speedtest/last-ping-test # Echo ping to file (ms)
+              cat /tmp/speedtest-temp | awk '/Jitter/ {print $5}' > /speedtest/last-jitter-test # Echo jitter to file (ms)

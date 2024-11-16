@@ -1,0 +1,97 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: opnsense-configmap
+data:
+  backup.sh: |
+    #!/bin/bash
+
+    # Define variables
+    OPNSENSE_IP="10.10.3.254"
+    BACKUP_DIR="/backups"
+    NOW=$(date +"%Y-%m-%d--%H-%M")
+
+    # Define the below as secret env vars
+    # PASSWORD
+    # API_KEY
+    # API_SECRET
+
+    echo "Starting backup at $NOW"
+
+    # Download the backup and save it with the current date and time
+    curl -k -u $API_KEY:$API_SECRET https://$OPNSENSE_IP/api/core/backup/download/this -o "$BACKUP_DIR/backup-$NOW.xml"
+
+    if [ $? -ne 0 ]; then
+      echo "Backup failed"
+      echo 1 > $BACKUP_DIR/last-exit-code.log
+      exit 1
+    fi
+
+    # Encrypt the backup using zip with a password
+    openssl aes-256-cbc -pbkdf2 -in "$BACKUP_DIR/backup-$NOW.xml" -k $PASSWORD -out "$BACKUP_DIR/backup-$NOW.enc"
+
+    if [ $? -ne 0 ]; then
+      echo "Backup encryption failed"
+      echo 1 > $BACKUP_DIR/last-exit-code.log
+      exit 1
+    fi
+
+    # Decrypt with this
+    # openssl aes-256-cbc -d -pbkdf2 -in file_name_here.enc -k password_here -out file.xml
+
+    # Remove the unencrypted backup file
+    rm "$BACKUP_DIR/backup-$NOW.xml"
+
+    # Delete backups older than 30 days
+    echo "Deleting backups older than 30 days"
+    BACKUP_COUNT=$(ls $BACKUP_DIR | wc -l)
+    echo "There are $BACKUP_COUNT backups"
+    if [ $BACKUP_COUNT -gt 30 ]
+    then
+        echo "Deleting *.enc backups older than 30 days"
+        find $BACKUP_DIR -mtime +30 -name "*.enc" -delete
+        echo "Backup deletion complete"
+    fi
+
+    echo "Backup complete at $(date "+%Y-%m-%d--%H-%M")"
+    echo 0 > $BACKUP_DIR/last-exit-code.log
+    exit 0
+
+---
+
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: opnsense-backup-cronjob
+spec:
+  schedule: "0 0 * * *" # Midnight every day
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          volumes:
+          - name: backups
+            nfs:
+              path: /mnt/ssd/opnsense-backups/backups
+              server: 10.10.3.2
+          - name: scripts
+            configMap:
+              name: opnsense-configmap
+
+          containers:
+          - name: opnsense-backup
+            image: 77cla77/opnsense-backup
+            securityContext:
+              runAsUser: 1000
+            command:
+            - "/bin/bash"
+            - "/scripts/backup.sh"
+            volumeMounts:
+            - name: backups
+              mountPath: /backups
+            - name: scripts
+              mountPath: /scripts
+            envFrom:
+            - secretRef:
+                name: opnsense-secrets
+          restartPolicy: OnFailure

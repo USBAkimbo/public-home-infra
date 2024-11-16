@@ -1,0 +1,4 @@
+- name: Copy crontab to /etc/crontab
+  template:
+    src: crontab.j2
+    dest: /etc/crontab

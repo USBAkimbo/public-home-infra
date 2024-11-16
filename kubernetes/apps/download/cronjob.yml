@@ -1,0 +1,86 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: download-backup-cronjob
+spec:
+  schedule: "0 0 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    app: download # Force cron job to run on the same node as the download stack
+                topologyKey: "kubernetes.io/hostname"
+          volumes:
+          - name: backups
+            nfs:
+              path: /mnt/ssd/pvc-backup
+              server: 10.10.3.2
+
+          - name: jellyfin-config
+            persistentVolumeClaim:
+              claimName: jellyfin-config
+
+          - name: sonarr-config
+            persistentVolumeClaim:
+              claimName: sonarr-config
+
+          - name: radarr-config
+            persistentVolumeClaim:
+              claimName: radarr-config
+
+          - name: prowlarr-config
+            persistentVolumeClaim:
+              claimName: prowlarr-config
+
+          - name: sabnzbd-config
+            persistentVolumeClaim:
+              claimName: sabnzbd-config
+
+          - name: bazarr-config
+            persistentVolumeClaim:
+              claimName: bazarr-config
+
+          containers:
+          - name: backup
+            image: ubuntu:24.04
+            securityContext:
+              runAsUser: 0
+            volumeMounts:
+            - mountPath: /jellyfin-config
+              name: jellyfin-config
+            - mountPath: /sonarr-config
+              name: sonarr-config
+            - mountPath: /radarr-config
+              name: radarr-config
+            - mountPath: /prowlarr-config
+              name: prowlarr-config
+            - mountPath: /sabnzbd-config
+              name: sabnzbd-config
+            - mountPath: /bazarr-config
+              name: bazarr-config
+
+            - mountPath: /backups
+              name: backups
+
+            command:
+            - "/bin/bash"
+            args:
+            - "-c"
+            - |
+              apt update &&
+              apt install rsync -y &&
+              rsync -vaz /jellyfin-config/ /backups/jellyfin --delete --progress
+              rsync -vaz /sonarr-config/ /backups/sonarr --delete --progress
+              rsync -vaz /radarr-config/ /backups/radarr --delete --progress
+              rsync -vaz /prowlarr-config/ /backups/prowlarr --delete --progress
+              rsync -vaz /sabnzbd-config/ /backups/sabnzbd --delete --progress
+              rsync -vaz /bazarr-config/ /backups/bazarr --delete --progress
+              exit 0
+
+          restartPolicy: OnFailure
+

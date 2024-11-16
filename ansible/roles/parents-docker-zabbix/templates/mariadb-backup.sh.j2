@@ -1,0 +1,39 @@
+# Set "$dt" to YYYY-MM-DD--HH-MM
+DT=$(date "+%Y-%m-%d--%H-%M")
+
+# Set backup location
+BACKUP_LOCATION="{{ BACKUP_SCRIPT_PATH }}"
+
+echo "Starting backup at $DT"
+docker exec zabbix-db mariadb-dump -u{{ MYSQL_USER }} -p{{ MYSQL_PASSWORD }} --all-databases > $BACKUP_LOCATION/zabbix-mariadb-backup-$DT.sql
+
+if [ $? -ne 0 ]; then
+    echo "Backup failed"
+    echo 1 > /var/log/zabbix-db-backup-exit-code.log
+    exit 1
+fi
+
+echo "Compressing backup"
+gzip $BACKUP_LOCATION/zabbix-mariadb-backup-$DT.sql
+
+if [ $? -ne 0 ]; then
+    echo "Compression failed"
+    echo 1 > /var/log/zabbix-db-backup-exit-code.log
+    exit 1
+fi
+
+echo "Deleting backups older than 3 days"
+BACKUP_COUNT=$(ls $BACKUP_LOCATION | wc -l)
+echo "There are $BACKUP_COUNT backups"
+if [ $BACKUP_COUNT -gt 3 ]
+then
+    echo "Deleting *.gz backups older than 3 days"
+    find $BACKUP_LOCATION -mtime +3 -name "*.gz" -delete
+    echo "Backup deletion complete"
+else
+    echo "There are less than 3 backups, nothing to do"
+fi
+
+echo "Backup complete at $(date "+%Y-%m-%d--%H-%M")"
+echo 0 > /var/log/zabbix-db-backup-exit-code.log
+exit 0

@@ -1,0 +1,42 @@
+name: "Ansible - Garage Switch"
+
+on:
+  workflow_dispatch:
+  push:
+    branches: main
+    paths:
+      - ansible/**
+      - .github/workflows/ansible-garage-switch.yml
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  ansible:
+    name: "Ansible Run"
+    runs-on: arc-runner-set
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Echo vault secret to file (ugh)
+        run: |
+          cd ansible
+          echo ${{ secrets.ANSIBLE_VAULT_KEY }} >> vault-pass
+
+      - name: Run playbook
+        run: |
+          cd ansible
+          export ANSIBLE_FORCE_COLOR=1
+          export ANSIBLE_HOST_KEY_CHECKING=False
+          ansible-playbook -i hosts --vault-password-file vault-pass actions-playbooks/ansible-garage-switch.yml
+
+      - name: Cleanup the vault secret, key and playbook
+        if: always()
+        run: |
+          cd ansible
+          rm -f vault-pass

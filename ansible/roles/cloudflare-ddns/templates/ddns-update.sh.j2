@@ -1,0 +1,43 @@
+#!/bin/bash
+API_TOKEN={{ CLOUDFLARE_API_TOKEN }}
+ZONE_ID={{ CLOUDFLARE_ZONE_ID }}
+DNS_RECORD_ID_1={{ CLOUDFLARE_DNS_RECORD_ID_1 }}
+DNS_FQDN_1={{ CLOUDFLARE_DNS_FQDN_1 }}
+DNS_RECORD_ID_2={{ CLOUDFLARE_DNS_RECORD_ID_2 }}
+DNS_FQDN_2={{ CLOUDFLARE_DNS_FQDN_2 }}
+CURRENT_IP=$(curl -s https://api.ipify.org)
+
+# Set "$dt" to YYYY-MM-DD--HH-MM
+dt=$(date "+%Y-%m-%d--%H-%M")
+
+# Update the first DNS record
+UPDATE_RESPONSE=$(curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records/$DNS_RECORD_ID_1" \
+     -H "Authorization: Bearer $API_TOKEN" \
+     -H "Content-Type: application/json" \
+     --data '{"type":"A","name":"'"$DNS_FQDN_1"'","content":"'"$CURRENT_IP"'","ttl":300,"proxied":true}')
+
+# Check if the update was successful
+if echo "$UPDATE_RESPONSE" | jq -e '.success' >/dev/null; then
+  echo $dt
+  echo "DNS record $DNS_FQDN_1 updated successfully to $CURRENT_IP"
+else
+  echo $dt
+  echo "Failed to update DNS record $DNS_FQDN_1"
+  echo "Response: $UPDATE_RESPONSE"
+fi
+
+# Update the second DNS record
+UPDATE_RESPONSE=$(curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records/$DNS_RECORD_ID_2" \
+     -H "Authorization: Bearer $API_TOKEN" \
+     -H "Content-Type: application/json" \
+     --data '{"type":"A","name":"'"$DNS_FQDN_2"'","content":"'"$CURRENT_IP"'","ttl":300,"proxied":false}')
+
+# Check if the update was successful
+if echo "$UPDATE_RESPONSE" | jq -e '.success' >/dev/null; then
+  echo $dt
+  echo "DNS record $DNS_FQDN_2 updated successfully to $CURRENT_IP"
+else
+  echo $dt
+  echo "Failed to update DNS record $DNS_FQDN_2"
+  echo "Response: $UPDATE_RESPONSE"
+fi

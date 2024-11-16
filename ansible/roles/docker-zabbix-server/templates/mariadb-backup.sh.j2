@@ -1,0 +1,24 @@
+# Set "$dt" to YYYY-MM-DD--HH-MM
+dt=$(date "+%Y-%m-%d--%H-%M")
+
+# cd to backup script folder
+cd {{ BACKUP_SCRIPT_PATH }}
+
+# Backup to a temporary file (.sql.tmp) and exit with error code 1 if it fails
+if ! docker exec zabbix-db mariadb-dump -uroot -p{{ MYSQL_PASSWORD }} zabbix > zabbix-mariadb-backup-$dt.sql.tmp; then
+    echo "1" > /tmp/zabbix-backup-status
+    exit 1
+fi
+
+# Compress the temporary file with gzip
+gzip zabbix-mariadb-backup-$dt.sql.tmp
+
+# Rename the compressed file to .sql.gz
+mv zabbix-mariadb-backup-$dt.sql.tmp.gz zabbix-mariadb-backup-$dt.sql.gz
+
+# Delete backups older than 3 days
+find . -type f -mtime +3 -name "*.sql.gz" -delete
+
+# Write out successful backup status
+echo "0" > /tmp/zabbix-backup-status
+exit 0

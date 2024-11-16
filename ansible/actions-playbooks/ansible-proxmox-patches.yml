@@ -1,0 +1,5 @@
+- hosts: proxmox_hosts
+  become: yes
+  serial: 1 # Run 1 host at a time
+  roles:
+    - roles/install-proxmox-patches

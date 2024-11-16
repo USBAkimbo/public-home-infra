@@ -1,0 +1,32 @@
+services:
+  traefik:
+    image: traefik
+    container_name: traefik
+    restart: unless-stopped
+    environment:
+    - CF_API_EMAIL={{ CLOUDFLARE_EMAIL }}
+    - CF_API_KEY={{ CLOUDFLARE_API_KEY }}
+    command:
+    - --log.level=DEBUG
+    - --providers.docker=true
+    - --providers.docker.exposedbydefault=false # Only make Traefik work with containers that have a label
+    - --entryPoints.web.address=:80
+    - --entryPoints.web.http.redirections.entryPoint.to=websecure
+    - --entryPoints.web.http.redirections.entryPoint.scheme=https
+    - --entryPoints.websecure.address=:443
+    - --certificatesresolvers.cloudflare.acme.dnschallenge.provider=cloudflare
+    - --certificatesresolvers.cloudflare.acme.dnschallenge.delaybeforecheck=30 # Wait 30s before checking for the TXT record
+    - --certificatesresolvers.cloudflare.acme.dnschallenge.disablepropagationcheck=true # Disable DNS propagation check (looks like a bug)
+    - --certificatesresolvers.cloudflare.acme.storage=/letsencrypt/acme.json # Persist certs in acme.json
+    ports:
+    - 80:80
+    - 443:443
+    volumes:
+    - /var/run/docker.sock:/var/run/docker.sock:ro
+    - /opt/dockervolumes/traefik/letsencrypt:/letsencrypt
+    networks:
+    - proxy
+
+networks:
+  proxy:
+    external: true

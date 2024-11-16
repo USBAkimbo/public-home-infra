@@ -1,0 +1,10 @@
+- name: Install Python pip
+  ansible.builtin.apt:
+    name: pip
+    state: latest
+    cache_valid_time: 3600
+
+- name: Install pip requests
+  ansible.builtin.pip:
+    name: requests
+    state: latest

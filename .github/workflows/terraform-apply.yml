@@ -1,0 +1,32 @@
+name: "Terraform Apply"
+
+on:
+  workflow_dispatch:
+# push:
+#    branches: main
+#    paths: terraform/**
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  terraform:
+    name: "Terraform Apply"
+    runs-on: self-hosted
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Terraform init
+        run: |
+          cd terraform
+          terraform init
+
+      - name: Terraform apply
+        run: |
+          cd terraform
+          terraform apply -auto-approve -var 'pm_api_url=${{ secrets.PM_API_URL }}' -var 'pm_user=${{ secrets.PM_USER }}' -var 'pm_password=${{ secrets.PM_PASSWORD }}'

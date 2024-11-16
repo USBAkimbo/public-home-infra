@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: deemix-ingress
+  annotations:
+    cert-manager.io/cluster-issuer: cloudflare-issuer
+
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: deemix.greenappleton.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: deemix
+            port:
+              name: deemix
+  tls:
+  - hosts:
+    - deemix.greenappleton.com
+    secretName: deemix.greenappleton.com

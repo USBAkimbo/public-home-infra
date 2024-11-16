@@ -1,0 +1,5 @@
+- name: Restart and enable Zabbix Agent 2 service
+  systemd:
+    name: zabbix-agent2
+    state: restarted
+    enabled: yes

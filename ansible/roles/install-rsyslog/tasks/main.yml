@@ -1,0 +1,22 @@
+- name: Install rsyslog
+  ansible.builtin.apt:
+    name: rsyslog
+    state: latest
+    cache_valid_time: 3600
+
+- name: Copy rsyslog.conf
+  ansible.builtin.copy:
+    src: rsyslog.conf
+    dest: /etc/rsyslog.conf
+  register: syslog_config
+
+- name: Remove rsyslog.d
+  ansible.builtin.file:
+    path: /etc/rsyslog.d
+    state: absent
+
+- name: Restart rsyslog service
+  ansible.builtin.systemd:
+    name: rsyslog
+    state: restarted
+  when: syslog_config.changed

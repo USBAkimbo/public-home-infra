@@ -1,0 +1,26 @@
+- name: Install required packages
+  ansible.builtin.apt:
+    cache_valid_time: 3600
+    name:
+    - jq
+    - curl
+    state: latest
+
+- name: Create DDNS folder
+  ansible.builtin.file:
+    path: /opt/ddns
+    state: directory
+
+- name: Copy over DDNS script
+  ansible.builtin.template:
+    src: ddns-update.sh.j2
+    dest: /opt/ddns/ddns-update.sh
+    mode: 700
+
+- name: Create hourly cron job
+  ansible.builtin.cron:
+    name: ddns-update
+    cron_file: ddns-update
+    minute: 0
+    user: root
+    job: /opt/ddns/ddns-update.sh >> /var/log/ddns-update.log

@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Secret
+immutable: true
+metadata:
+  name: frigate-basic-auth
+type: Opaque
+data:
+  auth: base64stringhere
+  # Must be in base64
+  # Run the below to generate the string
+  # echo 'string' | htpasswd -ic auth-temp-file admin && cat auth-temp-file && echo "$(cat auth-temp-file)" | base64 && rm -f auth-temp-file

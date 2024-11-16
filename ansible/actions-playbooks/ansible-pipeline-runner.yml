@@ -1,0 +1,8 @@
+- hosts: localhost
+  become: yes
+  roles:
+    - roles/enable-auto-update
+    - roles/set-pipeline-ssh-config
+    - roles/install-zabbix-agent2
+    - roles/install-ansible
+    - roles/install-fluent-bit-seq-agent

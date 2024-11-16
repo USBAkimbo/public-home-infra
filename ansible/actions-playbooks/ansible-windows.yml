@@ -1,0 +1,10 @@
+- hosts: windows_hosts
+  tasks:
+    - name: write hostname
+      ansible.windows.win_powershell:
+        script: hostname
+      register: hostname
+    
+    - name: echo hostname
+      ansible.builtin.debug:
+        msg: "{{ hostname.output }}"

@@ -1,0 +1,90 @@
+# Turn off MQTT because I'm not using Home Assistant
+mqtt:
+  enabled: false
+
+# Keep 24/7 recorded video for 30 days
+record:
+  enabled: true
+  retain:
+    days: 30
+    mode: all
+
+# Set the live view to all cameras all the time
+birdseye:
+  mode: continuous
+
+detect:
+  width: 640
+  height: 480
+
+objects:
+  track:
+    - person
+    - bicycle
+    - car
+    - motorcycle
+    - bird
+    - cat
+    - dog
+
+detectors:
+  coral:
+    device: usb
+    type: edgetpu # Coral USB
+
+cameras:
+  c1-side:
+    ffmpeg:
+      inputs:
+        - path: http://10.10.8.11/flv?port=1935&app=bcs&stream=channel0_main.bcs&user=admin&password={FRIGATE_C1_PASS}
+          input_args: preset-http-reolink
+          roles:
+            - record
+        - path: http://10.10.8.11/flv?port=1935&app=bcs&stream=channel0_sub.bcs&user=admin&password={FRIGATE_C1_PASS}
+          input_args: preset-http-reolink
+          roles:
+            - detect
+      output_args:
+        record: preset-record-generic-audio-copy
+
+  c2-garden:
+    ffmpeg:
+      inputs:
+        - path: http://10.10.8.12/flv?port=1935&app=bcs&stream=channel0_main.bcs&user=admin&password={FRIGATE_C2_PASS}
+          input_args: preset-http-reolink
+          roles:
+            - record
+        - path: http://10.10.8.12/flv?port=1935&app=bcs&stream=channel0_sub.bcs&user=admin&password={FRIGATE_C2_PASS}
+          input_args: preset-http-reolink
+          roles:
+            - detect
+      output_args:
+        record: preset-record-generic-audio-copy
+
+  c3-garage:
+    ffmpeg:
+      inputs:
+        - path: http://10.10.8.13/flv?port=1935&app=bcs&stream=channel0_main.bcs&user=admin&password={FRIGATE_C3_PASS}
+          input_args: preset-http-reolink
+          roles:
+            - record
+        - path: http://10.10.8.13/flv?port=1935&app=bcs&stream=channel0_sub.bcs&user=admin&password={FRIGATE_C3_PASS}
+          input_args: preset-http-reolink
+          roles:
+            - detect
+      output_args:
+        record: preset-record-generic-audio-copy
+
+  c4-front:
+    ffmpeg:
+      inputs:
+        - path: http://10.10.8.14/flv?port=1935&app=bcs&stream=channel0_main.bcs&user=admin&password={FRIGATE_C4_PASS}
+          input_args: preset-http-reolink
+          roles:
+            - record
+        - path: http://10.10.8.14/flv?port=1935&app=bcs&stream=channel0_sub.bcs&user=admin&password={FRIGATE_C4_PASS}
+          input_args: preset-http-reolink
+          roles:
+            - detect
+      output_args:
+        record: preset-record-generic-audio-copy

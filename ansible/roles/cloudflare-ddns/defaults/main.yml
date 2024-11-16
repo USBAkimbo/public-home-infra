@@ -1,0 +1,25 @@
+CLOUDFLARE_API_TOKEN: token here but don't use your main API key!
+CLOUDFLARE_ZONE_ID: zone ID from the dashboard in Cloudflare
+CLOUDFLARE_DNS_RECORD_ID_1: ID of record from below help
+CLOUDFLARE_DNS_FQDN_1: share.domain.com
+CLOUDFLARE_DNS_RECORD_ID_2: ID of record from below help
+CLOUDFLARE_DNS_FQDN_2: other.domain.com
+
+# To get your DNS record ID, first create it in Cloudflare with any value
+# Then run the below to list all of the records with their IDs
+# You'll be able to see yours
+# You need jq for this
+
+# Cloudflare account details
+#cf_email="email"
+#cf_api_key="global_api_key"
+#cf_zone_id="zone_id_from_domain_dashboard"
+
+# Get DNS records
+#records=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$cf_zone_id/dns_records" \
+#-H "X-Auth-Email: $cf_email" \
+#-H "X-Auth-Key: $cf_api_key" \
+#-H "Content-Type: application/json")
+
+# Print DNS records
+#echo "$records" | jq

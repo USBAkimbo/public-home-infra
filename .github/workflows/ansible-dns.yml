@@ -1,0 +1,38 @@
+name: "Ansible - DNS"
+
+on:
+  workflow_dispatch:
+  push:
+    branches: main
+    paths:
+      - ansible/**
+      - .github/workflows/ansible-dns.yml
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  ansible:
+    name: "Ansible Run"
+    runs-on: arc-runner-set
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run playbook
+        run: |
+          cd ansible
+          echo ${{ secrets.ANSIBLE_VAULT_KEY }} >> vault-pass
+          export ANSIBLE_FORCE_COLOR=1
+          export ANSIBLE_HOST_KEY_CHECKING=False
+          ansible-playbook -i hosts --vault-password-file vault-pass actions-playbooks/ansible-dns.yml
+      
+      - name: Cleanup
+        if: always()
+        run: |
+          cd ansible
+          rm -f vault-pass

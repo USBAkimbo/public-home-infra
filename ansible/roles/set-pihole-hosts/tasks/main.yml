@@ -1,0 +1,4 @@
+- name: Copy hosts
+  ansible.builtin.copy:
+    src: hosts
+    dest: /etc/hosts

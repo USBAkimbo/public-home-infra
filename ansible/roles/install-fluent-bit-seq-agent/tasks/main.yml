@@ -1,0 +1,45 @@
+- name: Ensure GPG is installed
+  ansible.builtin.apt:
+    name: gpg
+    state: latest
+    cache_valid_time: 3600
+
+# https://www.jeffgeerling.com/blog/2022/aptkey-deprecated-debianubuntu-how-fix-ansible
+- name: Add fluent-bit apt repo key
+  ansible.builtin.get_url:
+    url: https://packages.fluentbit.io/fluentbit.key
+    dest: /etc/apt/trusted.gpg.d/fluentbit.asc
+    mode: '0644'
+
+- name: Add fluent-bit repository
+  ansible.builtin.apt_repository:
+    repo: deb [signed-by=/etc/apt/trusted.gpg.d/fluentbit.asc] https://packages.fluentbit.io/{{ ansible_distribution | lower }}/{{ ansible_distribution_release }} {{ ansible_distribution_release }} main
+    state: present
+    filename: fluent-bit
+  register: repo_added
+
+- name: Update APT cache
+  ansible.builtin.apt:
+    update_cache: yes
+  when: repo_added.changed
+
+- name: Install fluent-bit
+  ansible.builtin.apt:
+    name: fluent-bit
+    state: latest
+
+- name: Copy over parser config
+  ansible.builtin.template:
+    src: parsers.conf.j2
+    dest: /etc/fluent-bit/parsers.conf
+
+- name: Copy over fluent-bit config
+  ansible.builtin.template:
+    src: fluent-bit.conf.j2
+    dest: /etc/fluent-bit/fluent-bit.conf
+
+- name: Start and enable fluent-bit service
+  systemd:
+    name: fluent-bit
+    state: restarted
+    enabled: yes

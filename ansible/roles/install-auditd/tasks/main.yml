@@ -1,0 +1,17 @@
+- name: Install auditd
+  ansible.builtin.apt:
+    name: auditd
+    state: latest
+    cache_valid_time: 3600
+
+- name: Copy auditd config
+  ansible.builtin.copy:
+    src: audit.rules
+    dest: /etc/audit/rules.d/audit.rules
+  register: auditd_config
+
+- name: Restart auditd when config changed
+  ansible.builtin.systemd:
+    name: auditd
+    state: restarted
+  when: auditd_config.changed

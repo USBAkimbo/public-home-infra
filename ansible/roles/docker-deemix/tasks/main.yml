@@ -1,0 +1,25 @@
+- name: Create Deemix directory
+  file:
+    path: /opt/dockervolumes/deemix
+    state: directory
+    recurse: yes
+
+- name: Start Deemix container
+  docker_container:
+    name: deemix
+    image: registry.gitlab.com/bockiii/deemix-docker
+    state: started
+    restart: true
+    restart_policy: unless-stopped
+    volumes:
+      - /opt/dockervolumes/deemix/downloads:/downloads
+      - /opt/dockervolumes/deemix/config:/config
+    ports:
+      - 6595:6595
+    networks:
+      - name: proxy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.deemix.rule=Host(`{{ DNS_NAME }}`)
+      - traefik.http.routers.deemix.entrypoints=websecure
+      - traefik.http.routers.deemix.tls.certresolver=cloudflare

@@ -1,0 +1,44 @@
+- name: Create Zabbix folders
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0770'
+    recurse: true
+  loop:
+  - /opt/dockervolumes/zabbix/zabbix-db/mariadb
+  - /opt/dockervolumes/zabbix/zabbix-db/backups
+
+- name: Copy over docker-compose.yml
+  template:
+    src: docker-compose.yml.j2
+    dest: /opt/dockervolumes/zabbix/docker-compose.yml
+
+- name: Create docker proxy network
+  community.docker.docker_network:
+    name: proxy
+
+- name: Copy over backup script
+  ansible.builtin.template:
+    src: mariadb-backup.sh.j2
+    dest: /opt/dockervolumes/zabbix/zabbix-db/mariadb-backup.sh
+    owner: root
+    mode: '0700'
+
+- name: Create backup cron job daily at 04:00
+  ansible.builtin.cron:
+    name: zabbix-mariadb-backup
+    cron_file: zabbix-mariadb-backup
+    minute: 0
+    hour: 4
+    user: root
+    job: /opt/dockervolumes/zabbix/zabbix-db/mariadb-backup.sh
+
+- name: Install gzip for backups
+  ansible.builtin.apt:
+    name: gzip
+    state: latest
+
+- name: Start compose stack
+  community.docker.docker_compose_v2:
+    project_src: /opt/dockervolumes/zabbix
+    project_name: zabbix

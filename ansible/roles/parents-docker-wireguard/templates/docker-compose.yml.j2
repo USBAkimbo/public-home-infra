@@ -1,0 +1,27 @@
+services:
+  wireguard:
+    image: lscr.io/linuxserver/wireguard
+    container_name: wireguard
+    cap_add:
+    - NET_ADMIN
+    - SYS_MODULE
+    environment:
+    - PUID=1000
+    - PGID=1000
+    - TZ=Europe/London
+    - SERVERURL={{ WIREGUARD_URL }}
+    - SERVERPORT=51820
+    - PEERS=conorpc,conorphone
+    - PEERDNS=1.1.1.1
+    - INTERNAL_SUBNET=10.13.13.0
+    - ALLOWEDIPS=0.0.0.0/0
+    - LOG_CONFS=true
+    - PERSISTENTKEEPALIVE_PEERS=conorpc,conorphone
+    volumes:
+    - /opt/dockervolumes/wireguard/config:/config
+    - /lib/modules:/lib/modules
+    ports:
+    - 51820:51820/udp
+    sysctls:
+    - net.ipv4.conf.all.src_valid_mark=1
+    restart: unless-stopped

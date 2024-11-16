@@ -1,0 +1,26 @@
+- name: Install software-properties-common
+  apt:
+    name: software-properties-common
+    state: present
+    update_cache: true
+
+- name: Add Ansible PPA
+  apt_repository:
+    repo: ppa:ansible/ansible
+    state: present
+    update_cache: yes
+
+- name: Install Ansible
+  apt:
+    name: ansible
+    state: latest
+
+- name: Copy over requirements
+  copy:
+    src: requirements.yml
+    dest: /tmp/requirements.yml
+
+- name: Install requirements
+  shell:
+    cmd: ansible-galaxy install -r requirements.yml
+    chdir: /tmp

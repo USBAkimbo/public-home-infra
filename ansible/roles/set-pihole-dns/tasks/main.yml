@@ -1,0 +1,9 @@
+- name: Copy custom.list
+  copy:
+    src: custom.list
+    dest: /etc/pihole/custom.list
+  register: pihole_config
+
+- name: Reload Pi-Hole DNS if there's changes
+  command: pihole restartdns
+  when: pihole_config.changed

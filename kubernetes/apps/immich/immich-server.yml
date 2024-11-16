@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: immich-server
+  labels:
+    app: immich-server
+spec:
+  selector:
+    matchLabels:
+      app: immich-server
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: immich-server
+    spec:
+      nodeSelector:
+        immich: allowed
+      volumes:
+      - name: immich-uploads
+        nfs:
+          path: /mnt/ssd/k8s/immich/uploads
+          server: 10.10.3.2
+
+      restartPolicy: Always
+      dnsConfig:
+        options:
+        - name: ndots
+          value: "1"
+      containers:
+      - name: immich-server
+        image: ghcr.io/immich-app/immich-server:v1.120.2
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100M
+          limits:
+            memory: 4G
+
+        env:
+        - name: DB_HOSTNAME
+          value: immich-db
+        - name: DB_USERNAME
+          value: postgres
+        - name: DB_PASSWORD
+          value: postgres
+        - name: DB_DATABASE_NAME
+          value: immich
+        - name: REDIS_HOSTNAME
+          value: immich-redis
+        - name: IMMICH_MACHINE_LEARNING_URL
+          value: http://immich-ml:3003
+
+        ports:
+        - containerPort: 2283
+          name: immich-server
+
+        volumeMounts:
+        - mountPath: /usr/src/app/upload
+          name: immich-uploads
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: immich-server
+  labels:
+    app: immich-server
+spec:
+  type: ClusterIP
+  ports:
+  - name: immich-server
+    port: 2283
+    targetPort: 2283
+  selector:
+    app: immich-server

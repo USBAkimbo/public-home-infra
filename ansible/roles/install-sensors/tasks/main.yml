@@ -1,0 +1,4 @@
+- name: Install xsensors package
+  ansible.builtin.apt:
+    name: xsensors
+    state: latest

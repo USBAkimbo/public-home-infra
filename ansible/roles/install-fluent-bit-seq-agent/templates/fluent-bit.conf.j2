@@ -1,0 +1,24 @@
+[INPUT]
+    Name                    tail
+    Parser                  simple
+    Path                    /var/log/dmesg, /var/log/*.log, /var/log/*/*.log
+    Path_Key                file_path
+
+[FILTER]
+    Name                    modify
+    Match                   *
+    Rename                  log @m
+    Add                     hostname ${HOSTNAME}
+
+[OUTPUT]
+    Name                    http
+    Match                   *
+    Host                    {{ SEQ_SERVER_URL }}
+    Port                    443
+    TLS                     On
+    URI                     ingest/clef
+    Header                  X-Seq-ApiKey {{ SEQ_API_KEY }}
+    Format                  json_lines
+    Json_date_key           @t
+    Json_date_format        iso8601
+    Log_response_payload    False

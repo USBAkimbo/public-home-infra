@@ -1,0 +1,4 @@
+- name: Restart apcupsd
+  service:
+    name: apcupsd
+    state: restarted

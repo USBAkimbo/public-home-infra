@@ -1,0 +1,20 @@
+- name: Stop ingest service
+  ansible.builtin.systemd:
+    name: seqcli-log-ingest
+    state: stopped
+    enabled: false
+  ignore_errors: true
+
+- name: Nuke seqcli folder
+  ansible.builtin.file:
+    path: "/opt/seqcli"
+    state: absent
+
+- name: Nuke log ingest service
+  ansible.builtin.file:
+    path: /etc/systemd/system/seqcli-log-ingest.service
+    state: absent
+
+- name: Reload systemctl daemons
+  ansible.builtin.systemd:
+    daemon_reload: true

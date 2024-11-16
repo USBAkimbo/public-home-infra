@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: zabbix-ingress
+  annotations:
+    cert-manager.io/cluster-issuer: cloudflare-issuer
+
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: zabbix.greenappleton.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: zabbix-web
+            port:
+              name: zabbix-web
+  tls:
+  - hosts:
+    - zabbix.greenappleton.com
+    secretName: zabbix.greenappleton.com

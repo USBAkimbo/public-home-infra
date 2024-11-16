@@ -1,0 +1,11 @@
+[Unit]
+Description=Seq CLI Log Ingest Service
+After=network.target
+
+[Service]
+ExecStart=/bin/bash "/opt/seqcli/seqcli-{{ SEQCLI_VERSION }}-linux-x64/seqcli-log-ingest.sh"
+ExecStop=pkill -f "seqcli ingest"
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

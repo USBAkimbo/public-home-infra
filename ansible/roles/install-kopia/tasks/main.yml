@@ -1,0 +1,29 @@
+- name: Install requirements
+  apt:
+    name: "{{ item }}"
+    state: latest
+    cache_valid_time: 3600
+  loop:
+    - gpg
+    - curl
+
+- name: Check if Kopia GPG key already exists
+  ansible.builtin.stat:
+    path: /etc/apt/keyrings/kopia-keyring.gpg
+  register: keyring_exists
+
+- name: Download Kopia signing key
+  ansible.builtin.shell:
+    cmd: curl -s https://kopia.io/signing-key | gpg --dearmor -o /etc/apt/keyrings/kopia-keyring.gpg
+  when: not keyring_exists.stat.exists
+
+- name: Add apt repo
+  apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/kopia-keyring.gpg] http://packages.kopia.io/apt/ stable main"
+    filename: kopia
+
+- name: Install Kopia
+  apt:
+    name: kopia
+    state: latest
+    update_cache: yes

@@ -1,0 +1,11 @@
+- name: Copy apcupsd.conf
+  ansible.builtin.copy:
+    src: apcupsd.conf
+    dest: /etc/apcupsd/apcupsd.conf
+
+- name: Install apcupsd
+  ansible.builtin.apt:
+    update_cache: true
+    name: apcupsd
+    state: latest
+  notify: Restart apcupsd
