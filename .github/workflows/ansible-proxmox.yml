@@ -1,12 +1,12 @@
 name: "Ansible - Proxmox"
 
-on:
-  workflow_dispatch:
-  push:
-    branches: main
-    paths:
-      - ansible/**
-      - .github/workflows/ansible-proxmox.yml
+#on:
+#  workflow_dispatch:
+#  push:
+#    branches: main
+#    paths:
+#      - ansible/**
+#      - .github/workflows/ansible-proxmox.yml
 
 permissions:
   contents: read

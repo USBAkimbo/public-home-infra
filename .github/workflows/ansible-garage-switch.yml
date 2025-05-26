@@ -1,12 +1,12 @@
 name: "Ansible - Garage Switch"
 
-on:
-  workflow_dispatch:
-  push:
-    branches: main
-    paths:
-      - ansible/**
-      - .github/workflows/ansible-garage-switch.yml
+#on:
+#  workflow_dispatch:
+#  push:
+#    branches: main
+#    paths:
+#      - ansible/**
+#      - .github/workflows/ansible-garage-switch.yml
 
 permissions:
   contents: read

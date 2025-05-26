@@ -1,12 +1,12 @@
 name: "Ansible - DNS"
 
-on:
-  workflow_dispatch:
-  push:
-    branches: main
-    paths:
-      - ansible/**
-      - .github/workflows/ansible-dns.yml
+#on:
+#  workflow_dispatch:
+#  push:
+#    branches: main
+#    paths:
+#      - ansible/**
+#      - .github/workflows/ansible-dns.yml
 
 permissions:
   contents: read

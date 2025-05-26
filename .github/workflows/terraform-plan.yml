@@ -2,8 +2,8 @@ name: "Terraform Plan"
 
 on:
   workflow_dispatch:
-  push:
-    paths: terraform/**
+#  push:
+#    paths: terraform/**
 
 permissions:
   contents: read

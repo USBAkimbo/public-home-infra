@@ -1,12 +1,12 @@
 name: "Ansible - Office Switch"
 
-on:
-  workflow_dispatch:
-  push:
-    branches: main
-    paths:
-      - ansible/**
-      - .github/workflows/ansible-office-switch.yml
+#on:
+#  workflow_dispatch:
+#  push:
+#    branches: main
+#    paths:
+#      - ansible/**
+#      - .github/workflows/ansible-office-switch.yml
 
 permissions:
   contents: read

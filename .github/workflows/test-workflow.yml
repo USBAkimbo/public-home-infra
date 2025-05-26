@@ -1,10 +1,10 @@
 name: Actions Runner Controller Demo
 on:
   workflow_dispatch:
-  push:
-    branches: [ "main" ]
-    paths:
-      - .github/workflows/test-workflow.yml
+#  push:
+#    branches: [ "main" ]
+#    paths:
+#      - .github/workflows/test-workflow.yml
 
 jobs:
   Explore-GitHub-Actions:

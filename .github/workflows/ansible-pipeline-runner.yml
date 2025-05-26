@@ -1,12 +1,12 @@
 name: "Ansible - pipeline-runner"
 
-on:
-  workflow_dispatch:
-  push:
-    branches: ["main"]
-    paths:
-      - ansible/**
-      - .github/workflows/ansible-pipeline-runner.yml
+#on:
+ # workflow_dispatch:
+ #  push:
+ #   branches: ["main"]
+ #   paths:
+ #     - ansible/**
+ #     - .github/workflows/ansible-pipeline-runner.yml
 
 permissions:
   contents: read
