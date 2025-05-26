@@ -1,0 +1,51 @@
+name: "Ansible - TrueNAS"
+
+on:
+  workflow_dispatch:
+  push:
+    branches: main
+    paths:
+      - ansible/**
+      - .github/workflows/ansible-truenas.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  ansible:
+    name: "Ansible Run"
+    runs-on: arc-runner-set
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create secrets
+        run: |
+          cd ansible
+          echo ${{ secrets.ANSIBLE_VAULT_KEY }} >> vault-pass
+          chmod 600 vault-pass
+          echo ${{ secrets.SSH_HOST_KEY }} | base64 -d >> /tmp/key
+          dos2unix /tmp/key
+          chmod 600 /tmp/key
+
+      - name: Run playbook
+        run: |
+          cd ansible
+          export ANSIBLE_FORCE_COLOR=1
+          export ANSIBLE_HOST_KEY_CHECKING=False
+          ansible-playbook -i hosts --vault-password-file vault-pass actions-playbooks/ansible-truenas.yml
+
+      - name: Cleanup the vault secret, key and playbook
+        if: always()
+        run: |
+          cd ansible
+          rm -f vault-pass
+          rm -f /tmp/key

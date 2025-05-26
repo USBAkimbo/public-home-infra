@@ -1,0 +1,57 @@
+services:
+  seq:
+    image: datalust/seq:2025.1
+    container_name: seq
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+    environment:
+      - ACCEPT_EULA=Y
+      - SEQ_FIRSTRUN_ADMINPASSWORD={{ SEQ_ADMIN_PASSWORD }}
+    volumes:
+      - {{ DOCKER_VOLUMES_ROOT }}/seq/data:/data
+    networks:
+      - proxy
+      - seq
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.seq.rule=Host(`{{ SEQ_DOMAIN }}`)"
+      - "traefik.http.routers.seq.entrypoints=websecure"
+      - "traefik.http.routers.seq.tls.certresolver=cloudflare"
+      - "traefik.http.services.seq.loadbalancer.server.port=80"
+
+  seq-syslog:
+    image: datalust/seq-input-syslog:1.0.93
+    container_name: seq-syslog
+    restart: unless-stopped
+    depends_on:
+      - seq
+    environment:
+      - SEQ_ADDRESS=http://seq
+      - SEQ_API_KEY={{ SEQ_SYSLOG_API_KEY }}
+    networks:
+      - seq
+    ports:
+      - "514:514/udp"
+
+  seq-input-gelf:
+    image: datalust/seq-input-gelf:3.0
+    container_name: seq-input-gelf
+    restart: unless-stopped
+    depends_on:
+      - seq
+    environment:
+      - SEQ_ADDRESS=http://seq
+      - SEQ_API_KEY={{ SEQ_GELF_API_KEY }}
+    networks:
+      - seq
+    ports:
+      - "12201:12201/udp"
+
+networks:
+  proxy:
+    external: true
+  seq:

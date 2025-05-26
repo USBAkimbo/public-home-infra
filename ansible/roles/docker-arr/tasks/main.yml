@@ -1,25 +1,31 @@
-- name: Create Download stack directory
-  file:
-    path: /opt/dockervolumes/deemix
+- name: Create arr folders stack directory
+  ansible.builtin.file:
+    path: "{{ item }}"
     state: directory
-    recurse: yes
+    mode: "770"
+    owner: "1000"
+    group: "1000"
+  loop:
+    - "{{ DOCKER_VOLUMES_ROOT }}/jellyfin"
+    - "{{ DOCKER_VOLUMES_ROOT }}/sonarr"
+    - "{{ DOCKER_VOLUMES_ROOT }}/radarr"
+    - "{{ DOCKER_VOLUMES_ROOT }}/prowlarr"
+    - "{{ DOCKER_VOLUMES_ROOT }}/transmission"
+    - "{{ DOCKER_VOLUMES_ROOT }}/sabnzbd"
+    - "{{ DOCKER_VOLUMES_ROOT }}/bazarr"
 
-- name: Start Deemix container
-  docker_container:
-    name: deemix
-    image: registry.gitlab.com/bockiii/deemix-docker
-    state: started
-    restart: true
-    restart_policy: unless-stopped
-    volumes:
-    - /opt/dockervolumes/deemix/downloads:/downloads
-    - /opt/dockervolumes/deemix/config:/config
-    ports:
-    - 6595:6595
-    networks:
-    - name: proxy
-    labels:
-    - traefik.enable=true
-    - traefik.http.routers.deemix.rule=Host(`{{ DNS_NAME }}`)
-    - traefik.http.routers.deemix.entrypoints=websecure
-    - traefik.http.routers.deemix.tls.certresolver=cloudflare
+- name: Copy over docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ DOCKER_VOLUMES_ROOT }}/jellyfin/docker-compose.yml"
+    mode: "770"
+
+- name: Start compose stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ DOCKER_VOLUMES_ROOT }}/jellyfin"
+    project_name: arr
+
+- name: Cleanup compose file
+  ansible.builtin.file:
+    path: "{{ DOCKER_VOLUMES_ROOT }}/jellyfin/docker-compose.yml"
+    state: absent

@@ -1,0 +1,91 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fluent-bit-config
+data:
+  fluent-bit.conf: |
+    [INPUT]
+        Name                      tail
+        Path                      /var/log/containers/*.log
+        multiline.parser          docker, cri
+        Tag                       kube.*
+        Mem_Buf_Limit             5MB
+        Skip_Long_Lines           On
+
+    [FILTER]
+        Name                      kubernetes
+        Match                     kube.*
+        Merge_Log                 On
+        Keep_Log                  Off
+        K8S-Logging.Parser        On
+        K8S-Logging.Exclude       On
+
+    [FILTER]
+        Name                      modify
+        Match                     kube.*
+        Rename                    log @m
+
+    [OUTPUT]
+        Name                      http
+        Match                     kube.*
+        Host                      seq.greenappleton.com
+        Port                      443
+        TLS                       On
+        URI                       ingest/clef
+        Header                    X-Seq-ApiKey ${SEQ_API_KEY_ENV_VAR}
+        Format                    json_lines
+        Json_date_key             @t
+        Json_date_format          iso8601
+        Log_response_payload      False
+
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: fluent-bit
+  labels:
+    app: fluent-bit
+spec:
+  selector:
+    matchLabels:
+      app: fluent-bit
+  template:
+    metadata:
+      labels:
+        app: fluent-bit
+    spec:
+      serviceAccountName: seq-fluent-bit
+      containers:
+        - name: fluent-bit
+          image: fluent/fluent-bit:4.0.2
+          command:
+            - /fluent-bit/bin/fluent-bit
+          args:
+            - "--workdir=/fluent-bit/etc"
+            - "--config=/fluent-bit/etc/conf/fluent-bit.conf"
+          env:
+            - name: SEQ_API_KEY_ENV_VAR
+              valueFrom:
+                secretKeyRef:
+                  name: seq-secrets
+                  key: SEQ_API_KEY
+          resources:
+            requests:
+              cpu: 100m
+              memory: 200Mi
+            limits:
+              cpu: 100m
+              memory: 200Mi
+          volumeMounts:
+            - name: config
+              mountPath: /fluent-bit/etc/conf
+            - name: main-logs
+              mountPath: /var/log
+
+      volumes:
+        - name: config
+          configMap:
+            name: fluent-bit-config
+        - name: main-logs
+          hostPath:
+            path: /var/log

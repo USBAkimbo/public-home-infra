@@ -1,0 +1,8 @@
+- name: Get NAS files list every day at 00:00
+  ansible.builtin.cron:
+    name: media-files-list
+    cron_file: media-files-list
+    hour: 0
+    minute: 0
+    user: root
+    job: find /mnt/hdd/media | sort > /mnt/ssd/media-files-list/list.txt

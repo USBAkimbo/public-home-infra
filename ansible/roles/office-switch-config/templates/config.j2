@@ -36,8 +36,8 @@ interface GigabitEthernet0/1
 interface GigabitEthernet0/2
 !
 interface GigabitEthernet0/3
- description Temp Proxmox Nodes
- switchport access vlan 4
+ description Danger Zone
+ switchport access vlan 7
  switchport mode access
 !
 interface GigabitEthernet0/4
@@ -77,7 +77,7 @@ no ip http server
 no ip http secure-server
 logging console warnings
 logging origin-id hostname
-logging 10.10.3.8
+logging 10.10.3.2
 snmp-server community public RO
 !
 no vstack

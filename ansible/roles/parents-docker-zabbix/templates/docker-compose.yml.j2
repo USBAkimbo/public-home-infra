@@ -25,8 +25,6 @@ services:
     container_name: zabbix-server
     image: zabbix/zabbix-server-mysql:{{ ZABBIX_VERSION }}
     restart: always
-    ports:
-      - 10051:10051
     volumes:
       - /etc/localtime:/etc/localtime:ro
     environment:

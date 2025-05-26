@@ -4,7 +4,7 @@
       ansible.windows.win_powershell:
         script: hostname
       register: hostname
-    
+
     - name: echo hostname
       ansible.builtin.debug:
         msg: "{{ hostname.output }}"

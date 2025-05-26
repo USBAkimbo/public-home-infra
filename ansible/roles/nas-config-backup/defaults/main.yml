@@ -1,0 +1,4 @@
+TRUENAS_BACKUP_API_KEY: Set in main playbook
+TRUENAS_BACKUP_PASSWORD: Set in main playbook
+TRUENAS_SERVER_URL: "https://10.10.3.2:444"
+TRUENAS_BACKUP_PATH: "/mnt/ssd/truenas-config-backups"

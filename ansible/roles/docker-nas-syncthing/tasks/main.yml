@@ -1,0 +1,22 @@
+- name: Create Syncthing config directory
+  ansible.builtin.file:
+    path: /mnt/ssd/docker/syncthing/config
+    state: directory
+    mode: "770"
+    owner: "1000"
+
+- name: Copy over docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: /mnt/ssd/docker/syncthing/docker-compose.yml
+    mode: "770"
+
+- name: Start compose stack
+  community.docker.docker_compose_v2:
+    project_src: /mnt/ssd/docker/syncthing
+    project_name: syncthing
+
+- name: Cleanup compose file
+  ansible.builtin.file:
+    path: "/mnt/ssd/docker/syncthing/docker-compose.yml"
+    state: absent

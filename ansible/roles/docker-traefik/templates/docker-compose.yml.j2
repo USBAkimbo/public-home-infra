@@ -4,28 +4,32 @@ services:
     container_name: traefik
     restart: unless-stopped
     environment:
-    - CF_API_EMAIL={{ CLOUDFLARE_EMAIL }}
-    - CF_API_KEY={{ CLOUDFLARE_API_KEY }}
+      - CF_API_EMAIL={{ CLOUDFLARE_EMAIL }}
+      - CF_DNS_API_TOKEN={{ CLOUDFLARE_DNS_API_TOKEN }}
     command:
-    - --log.level=DEBUG
-    - --providers.docker=true
-    - --providers.docker.exposedbydefault=false # Only make Traefik work with containers that have a label
-    - --entryPoints.web.address=:80
-    - --entryPoints.web.http.redirections.entryPoint.to=websecure
-    - --entryPoints.web.http.redirections.entryPoint.scheme=https
-    - --entryPoints.websecure.address=:443
-    - --certificatesresolvers.cloudflare.acme.dnschallenge.provider=cloudflare
-    - --certificatesresolvers.cloudflare.acme.dnschallenge.delaybeforecheck=30 # Wait 30s before checking for the TXT record
-    - --certificatesresolvers.cloudflare.acme.dnschallenge.disablepropagationcheck=true # Disable DNS propagation check (looks like a bug)
-    - --certificatesresolvers.cloudflare.acme.storage=/letsencrypt/acme.json # Persist certs in acme.json
+      - --log.level=DEBUG
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false # Only make Traefik work with containers that have a label
+      - --entryPoints.web.address=:80
+      - --entryPoints.web.http.redirections.entryPoint.to=websecure
+      - --entryPoints.web.http.redirections.entryPoint.scheme=https
+      - --entryPoints.websecure.address=:443
+      - --certificatesresolvers.cloudflare.acme.dnschallenge.provider=cloudflare
+      - --certificatesresolvers.cloudflare.acme.dnschallenge.delaybeforecheck=30 # Wait 30s before checking for the TXT record
+      - --certificatesresolvers.cloudflare.acme.dnschallenge.disablepropagationcheck=true # Disable DNS propagation check (looks like a bug)
+      - --certificatesresolvers.cloudflare.acme.storage=/letsencrypt/acme.json # Persist certs in acme.json
     ports:
-    - 80:80
-    - 443:443
+      - 80:80
+      - 443:443
     volumes:
-    - /var/run/docker.sock:/var/run/docker.sock:ro
-    - /opt/dockervolumes/traefik/letsencrypt:/letsencrypt
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - {{ DOCKER_VOLUMES_ROOT }}/traefik/letsencrypt:/letsencrypt
     networks:
-    - proxy
+      - proxy
+    logging:
+      driver: gelf
+      options:
+        gelf-address: udp://{{ SEQ_GELF_IP }}:12201
 
 networks:
   proxy:

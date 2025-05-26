@@ -1,0 +1,88 @@
+###############################
+# USER CONFIGURABLE VARIABLES #
+###############################
+
+# Server IP or URL (include http(s)://)
+serverURL={{ TRUENAS_SERVER_URL }}
+
+# TrueNAS API key (Generate from 'User Icon' -> 'API Keys' in TrueNAS WebGUI)
+apiKey={{ TRUENAS_BACKUP_API_KEY }}
+
+# Backup encryption password
+backupPass={{ TRUENAS_BACKUP_PASSWORD }}
+
+# Path on server to store backups
+backuploc={{ TRUENAS_BACKUP_PATH }}
+
+# Include Secret Seed (true| false)
+secSeed=true
+
+# Max number of backups to keep (set as 0 to never delete anything)
+maxnrOfFiles=30
+
+######################################
+# END OF USER CONFIGURABLE VARIABLES #
+######################################
+
+# Check current TrueNAS version number
+versiondir=`cat /etc/version | cut -d' ' -f1`
+
+# Set directory for backups to: '/path/to/backups/truenas-version'
+backupMainDir="${backuploc}/${versiondir}"
+
+# Create directory for for backups (Location/Version)
+mkdir -p $backupMainDir
+
+# Use appropriate extention if we are exporting the secret seed
+if [ $secSeed = true ]
+then
+    fileExt="tar"
+    echo "Secret Seed will be included"
+else
+    fileExt="db"
+    echo "Secret Seed will NOT be included"
+fi
+
+# Generate file name
+fileName=$(hostname)-TrueNAS-$(date +%Y-%m-%d--%H-%M-%S).$fileExt
+
+# API call to backup config and include secret seed
+curl --no-progress-meter -k \
+-X 'POST' \
+$serverURL'/api/v2.0/config/save' \
+-H 'Authorization: Bearer '$apiKey \
+-H 'accept: */*' \
+-H 'Content-Type: application/json' \
+-d '{"secretseed": '$secSeed'}' \
+--output $backupMainDir/$fileName
+
+# Encryption
+echo "Encrypting the backup file..."
+openssl enc -cipher "$encryptionCipher" -pass pass:"$encryptionPassword" -out "${backupFile}.enc" -in "$backupFile"
+
+if [ $? -ne 0 ]; then
+    echo "ERROR: Encryption failed.  Check your password and cipher."
+    exit 1
+fi
+
+echo "Backup file encrypted to ${backupFile}.enc"
+
+# Delete the original (unencrypted) backup file
+echo "Deleting the original unencrypted backup file..."
+rm "$backupFile"
+
+if [ $? -ne 0 ]; then
+    echo "WARNING: Could not delete the original unencrypted file."
+fi
+
+# Delete old backups
+echo "Deleting backups older than ${oldDays} days..."
+find "$backupMainDir" -type f -mtime +"$oldDays" -not -name "$(basename "${backupFile}.enc")" -delete
+
+echo
+echo "DONE!"
+echo
+
+# --- DECRYPTION EXAMPLE (FOR RECOVERY) ---
+# To decrypt a backup file:
+# openssl enc -cipher aes-256-cbc -pass pass:"YOUR_ENCRYPTION_PASSWORD" -in mybackup.enc -out mybackup.tar

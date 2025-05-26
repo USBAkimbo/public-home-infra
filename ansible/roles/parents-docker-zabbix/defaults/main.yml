@@ -1,5 +1,5 @@
 # Compose
-ZABBIX_VERSION: ubuntu-7.0.5
+ZABBIX_VERSION: ubuntu-7.0.13
 MARIA_DB_VERSION: 11.3
 ZABBIX_DATA_PATH: /opt/dockervolumes/zabbix
 MYSQL_USER: zabbix

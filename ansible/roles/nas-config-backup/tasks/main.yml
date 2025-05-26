@@ -1,0 +1,23 @@
+- name: Ensure backup folders exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "700"
+  loop:
+    - "{{ TRUENAS_BACKUP_PATH }}/backups"
+    - "{{ TRUENAS_BACKUP_PATH }}/script"
+
+- name: Copy over backup script
+  ansible.builtin.template:
+    src: backup-script.sh.j2
+    dest: "{{ TRUENAS_BACKUP_PATH }}/script/truenas-backup.sh"
+    mode: "700"
+
+- name: Create backup every day at 00:00
+  ansible.builtin.cron:
+    name: truenas-config-backup
+    cron_file: truenas-config-backup
+    hour: 0
+    minute: 0
+    user: root
+    job: "{{ TRUENAS_BACKUP_PATH }}/script/truenas-backup.sh"

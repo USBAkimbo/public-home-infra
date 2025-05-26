@@ -1,21 +1,20 @@
 - name: Create Filebrowser directory
-  file:
+  ansible.builtin.file:
     path: "{{ item }}"
     state: directory
-    recurse: yes
-    mode: '770'
+    mode: "770"
   loop:
-    - /opt/dockervolumes/filebrowser
-    - /opt/dockervolumes/filebrowser/db
+    - "{{ DOCKER_VOLUMES_ROOT }}/filebrowser"
+    - "{{ DOCKER_VOLUMES_ROOT }}/filebrowser/db"
 
 - name: Check if Filebrowser DB exists
-  stat:
-    path: /opt/dockervolumes/filebrowser/db/filebrowser.db
+  ansible.builtin.stat:
+    path: "{{ DOCKER_VOLUMES_ROOT }}/filebrowser/db/filebrowser.db"
   register: filebrowser_db
 
 - name: Create Filebrowser DB if it's missing
-  file:
-    path: /opt/dockervolumes/filebrowser/db/filebrowser.db
+  ansible.builtin.file:
+    path: "{{ DOCKER_VOLUMES_ROOT }}/filebrowser/db/filebrowser.db"
     state: touch
   when: not filebrowser_db.stat.exists
 
@@ -24,12 +23,17 @@
     name: proxy
 
 - name: Copy over docker-compose.yml
-  template:
+  ansible.builtin.template:
     src: docker-compose.yml.j2
-    dest: /opt/dockervolumes/filebrowser/docker-compose.yml
-    mode: '770'
+    dest: "{{ DOCKER_VOLUMES_ROOT }}/filebrowser/docker-compose.yml"
+    mode: "770"
 
 - name: Start compose stack
   community.docker.docker_compose_v2:
-    project_src: /opt/dockervolumes/filebrowser
+    project_src: "{{ DOCKER_VOLUMES_ROOT }}/filebrowser"
     project_name: filebrowser
+
+- name: Cleanup compose file
+  ansible.builtin.file:
+    path: "{{ DOCKER_VOLUMES_ROOT }}/filebrowser/docker-compose.yml"
+    state: absent

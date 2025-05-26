@@ -1,0 +1,66 @@
+services:
+  immich-server:
+    container_name: immich_server
+    image: ghcr.io/immich-app/immich-server:v1.133.1
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: "3"
+    volumes:
+      - {{ DOCKER_VOLUMES_ROOT }}/immich/uploads:/usr/src/app/upload
+    depends_on:
+      - redis
+      - database
+    networks:
+      - proxy
+      - immich
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=proxy
+      - traefik.http.routers.immich.rule=Host(`{{ IMMICH_URL }}`)
+      - traefik.http.routers.immich.entrypoints=websecure
+      - traefik.http.routers.immich.tls.certresolver=cloudflare
+      - traefik.http.services.immich.loadbalancer.server.port=2283
+      - traefik.http.routers.immich.service=immich
+
+  immich-machine-learning:
+    container_name: immich_machine_learning
+    image: ghcr.io/immich-app/immich-machine-learning:v1.133.1
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: "3"
+    volumes:
+      - {{ DOCKER_VOLUMES_ROOT }}/immich/model-cache:/cache
+    networks:
+      - immich
+
+  redis:
+    container_name: immich_redis
+    image: docker.io/valkey/valkey:8-bookworm@sha256:42cba146593a5ea9a622002c1b7cba5da7be248650cbb64ecb9c6c33d29794b1
+    restart: always
+    networks:
+      - immich
+    healthcheck:
+      test: redis-cli ping || exit 1
+
+  database:
+    container_name: immich_postgres
+    image: ghcr.io/immich-app/postgres:14-vectorchord0.3.0-pgvectors0.2.0
+    restart: always
+    environment:
+      POSTGRES_DB: {{ IMMICH_DB_NAME }}
+      POSTGRES_USER: {{ IMMICH_DB_USERNAME }}
+      POSTGRES_PASSWORD: {{ IMMICH_DB_PASSWORD }}
+      POSTGRES_INITDB_ARGS: '--data-checksums'
+    volumes:
+      - {{ DOCKER_VOLUMES_ROOT }}/immich/pgdata:/var/lib/postgresql/data
+    networks:
+      - immich
+
+networks:
+  immich:
+  proxy:
+    external: true

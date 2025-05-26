@@ -2,16 +2,17 @@
   file:
     path: /opt/dockervolumes/wireguard/config
     state: directory
-    mode: '770'
-    recurse: true
+    mode: "770"
 
 - name: Copy over docker-compose.yml
   template:
     src: docker-compose.yml.j2
     dest: /opt/dockervolumes/wireguard/docker-compose.yml
-    mode: 0770
+    mode: "770"
 
-- name: Start compose stack
+- name: Start compose stack # Timeout and ignore errors because of some kind of WireGuard interface reset
   community.docker.docker_compose_v2:
     project_src: /opt/dockervolumes/wireguard
     project_name: wireguard
+  timeout: 60
+  ignore_errors: true

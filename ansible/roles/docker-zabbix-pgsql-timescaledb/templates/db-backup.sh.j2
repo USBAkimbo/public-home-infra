@@ -1,0 +1,30 @@
+#!/bin/bash
+
+# Vars
+dt=$(date "+%Y-%m-%d--%H-%M")
+BACKUP_DIR="{{ ZABBIX_PGSQL_DATA_PATH }}/backups"
+CONTAINER_NAME="zabbix-db"
+PGUSER="postgresql"
+PGHOST="localhost"
+PGPORT="5432" # PostgreSQL default port
+DATABASE="zabbix"
+BACKUP_FILE="zabbix-pgsql-backup-$dt"
+
+# cd to backup directory
+cd "$BACKUP_DIR"
+
+docker exec -u "postgresql" $CONTAINER_NAME pg_dump --format=custom --compress=9 -h localhost -p 5432 -U postgresql -d $DATABASE | gzip > "$BACKUP_FILE.gz"
+
+# Check for errors
+if [ $? -ne 0 ]; then
+    echo "ERROR: pg_dump or gzip failed."
+    echo "1" > /tmp/zabbix-backup-status
+    exit 1
+fi
+
+# Delete backups older than 3 days
+find . -type f -mtime +3 -name "*.gz" -delete
+
+# Write out successful backup status
+echo "0" > /tmp/zabbix-backup-status
+exit 0

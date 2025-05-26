@@ -1,0 +1,2 @@
+ZABBIX_PGSQL_DATA_PATH: "/mnt/ssd/docker/zabbix/db"
+ZABBIX_PGSQL_PASSWORD: "zabbix"

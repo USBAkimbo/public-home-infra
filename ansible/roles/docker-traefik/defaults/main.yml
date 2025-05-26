@@ -1,2 +1,4 @@
+DOCKER_VOLUMES_ROOT: /opt/dockervolumes
 CLOUDFLARE_EMAIL: me@email.com
-CLOUDFLARE_API_KEY: api_key_here
+CLOUDFLARE_DNS_API_TOKEN: api_key_here
+SEQ_GELF_IP: 10.10.3.2

@@ -80,7 +80,7 @@ spec:
 
           containers:
           - name: opnsense-backup
-            image: 77cla77/opnsense-backup
+            image: 77cla77/opnsense-backup:2024-12-01
             securityContext:
               runAsUser: 1000
             command:

@@ -3,19 +3,24 @@ services:
     container_name: filebrowser
     image: filebrowser/filebrowser
     restart: always
-    user: "1000"
+    user: "{{ FILEBROWSER_UID }}"
     volumes:
-      - /opt/dockervolumes/filebrowser/db/filebrowser.db:/database.db
-      - /mnt/data/share:/srv
-    ports:
-      - 81:80
+      - {{ DOCKER_VOLUMES_ROOT }}/filebrowser/db/filebrowser.db:/database.db
+      - {{ FILEBROWSER_SHARE_ROOT }}:/srv
     networks:
-    - proxy
+      - proxy
     labels:
-    - traefik.enable=true
-    - traefik.http.routers.deemix.rule=Host(`{{ FILEBROWSER_DNS_NAME }}`)
-    - traefik.http.routers.deemix.entrypoints=websecure
-    - traefik.http.routers.deemix.tls.certresolver=cloudflare
+      - traefik.enable=true
+      - traefik.http.routers.filebrowser.rule=Host(`{{ FILEBROWSER_DNS_NAME }}`)
+      - traefik.http.routers.filebrowser.entrypoints=websecure
+      - traefik.http.routers.filebrowser.tls.certresolver=cloudflare
+      - traefik.http.middlewares.filebrowser-buffer.buffering.maxRequestBodyBytes=17179869184 # 16GB max upload size
+      - traefik.http.middlewares.filebrowser-buffer.buffering.memRequestBodyBytes=104857600
+      - traefik.http.middlewares.filebrowser-buffer.buffering.maxResponseBodyBytes=17179869184
+    logging:
+      driver: gelf
+      options:
+        gelf-address: udp://{{ SEQ_GELF_IP }}:12201
 
 networks:
   proxy:

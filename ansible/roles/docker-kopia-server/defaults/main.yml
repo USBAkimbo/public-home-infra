@@ -1,0 +1,9 @@
+KOPIA_B2_FQDN: kopia-b2.greenappleton.com
+KOPIA_B2_BUCKET_NAME: Set in playbook
+KOPIA_B2_KEY_ID: Set in playbook
+KOPIA_B2_KEY_SECRET: Set in playbook
+KOPIA_B2_REPO_PASSWORD: Set in playbook
+KOPIA_B2_WEB_PASSWORD: Set in playbook
+KOPIA_LOCAL_FQDN: kopia-local.greenappleton.com
+KOPIA_LOCAL_REPO_PASSWORD: Set in playbook
+KOPIA_LOCAL_WEB_PASSWORD: Set in playbook

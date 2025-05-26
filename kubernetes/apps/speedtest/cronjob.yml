@@ -3,7 +3,7 @@ kind: CronJob
 metadata:
   name: speedtest
 spec:
-  schedule: "0 * * * *" # Every hour
+  schedule: "0 */6 * * *" # Every 6 hours
   jobTemplate:
     spec:
       template:
@@ -16,14 +16,17 @@ spec:
           restartPolicy: OnFailure
           containers:
           - name: speedtest
-            image: 77cla77/speedtest:2024-06-08
+            image: 77cla77/speedtest:2024-12-13
             volumeMounts:
             - mountPath: /speedtest
               name: speedtest
-            command: ["/bin/sh", "-c"]
+            command: [ "/bin/sh", "-c" ]
             args:
             - |
-              /librespeed-cli --simple > /tmp/speedtest-temp 2>&1 # Run speedtest and output to temp file
+              # Server list: https://librespeed.org/backend-servers/servers.php
+              # Selected server: ID 49, London, England (Clouvider) [lon.speedtest.clouvider.net]
+
+              /librespeed-cli  --server 49 --simple > /tmp/speedtest-temp 2>&1 # Run speedtest and output to temp file
               cat /tmp/speedtest-temp | awk '/Download rate/ {print $3}' > /speedtest/last-download-test # Echo download speed to file (Mbps)
               cat /tmp/speedtest-temp | awk '/Upload rate/ {print $3}' > /speedtest/last-upload-test # Echo upload speed to file (Mbps)
               cat /tmp/speedtest-temp | awk '/Ping/ {print $2}' > /speedtest/last-ping-test # Echo ping to file (ms)

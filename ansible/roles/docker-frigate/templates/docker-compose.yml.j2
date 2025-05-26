@@ -3,20 +3,19 @@ services:
     container_name: frigate
     privileged: true # this may not be necessary for all setups
     restart: unless-stopped
-    image: ghcr.io/blakeblackshear/frigate:stable
-    shm_size: "512mb" # update for your cameras based on calculation above
+    stop_grace_period: 30s # allow enough time to shut down the various services
+    image: ghcr.io/blakeblackshear/frigate:0.15.1
+    shm_size: "512mb"
+    devices:
+      - /dev/bus/usb:/dev/bus/usb # Passes the Coral AI USB module
     volumes:
       - /etc/localtime:/etc/localtime:ro
-      - /opt/dockervolumes/frigate/config:/config
-      - /mnt/cctv/frigate:/media/frigate
+      - {{ DOCKER_VOLUMES_ROOT }}/frigate/config:/config
+      - {{ FRIGATE_RECORDINGS }}:/media/frigate
       - type: tmpfs # Optional: 1GB of memory, reduces SSD/SD Card wear
         target: /tmp/cache
         tmpfs:
           size: 1000000000
-    ports:
-      - 8554:8554     # RTSP feeds
-      - 8555:8555/tcp # WebRTC over tcp
-      - 8555:8555/udp # WebRTC over udp
     environment:
       FRIGATE_C1_PASS: {{ FRIGATE_C1_PASSWORD }}
       FRIGATE_C2_PASS: {{ FRIGATE_C2_PASSWORD }}
@@ -27,10 +26,11 @@ services:
       - traefik.http.routers.cctv.rule=Host(`{{ CCTV_FQDN }}`)
       - traefik.http.routers.cctv.entrypoints=websecure
       - traefik.http.routers.cctv.tls.certresolver=cloudflare
-      - traefik.http.services.cctv.loadbalancer.server.port=5000
-      - traefik.http.routers.cctv.middlewares=auth
-      # Check the docs for the bcrypt format
-      - traefik.http.middlewares.auth.basicauth.users={{ FRIGATE_WEB_UI_CREDS }}
+      - traefik.http.services.cctv.loadbalancer.server.port=8971
+    logging:
+      driver: gelf
+      options:
+        gelf-address: udp://{{ SEQ_GELF_IP }}:12201
     networks:
       - proxy
 

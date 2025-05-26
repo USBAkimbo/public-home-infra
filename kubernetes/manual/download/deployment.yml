@@ -1,0 +1,324 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: download
+  labels:
+    app: download
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: download
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: download
+    spec:
+      nodeSelector:
+        download: allowed
+      dnsConfig:
+        options:
+          - name: ndots
+            value: "1"
+
+      volumes:
+        - name: downloads
+          nfs:
+            path: /mnt/hdd/downloads
+            server: 10.10.3.2
+        - name: incomplete-downloads
+          nfs:
+            path: /mnt/hdd/downloads/incomplete
+            server: 10.10.3.2
+        - name: tv
+          nfs:
+            path: /mnt/hdd/media/tv
+            server: 10.10.3.2
+        - name: movies
+          nfs:
+            path: /mnt/hdd/media/films
+            server: 10.10.3.2
+        - name: transmission-config
+          nfs:
+            path: /mnt/ssd/k8s/transmission/config
+            server: 10.10.3.2
+        - name: jellyfin-transcodes
+          emptyDir:
+            sizeLimit: 20Gi
+        - name: jellyfin-config
+          persistentVolumeClaim:
+            claimName: jellyfin-config
+        - name: sonarr-config
+          persistentVolumeClaim:
+            claimName: sonarr-config
+        - name: radarr-config
+          persistentVolumeClaim:
+            claimName: radarr-config
+        - name: prowlarr-config
+          persistentVolumeClaim:
+            claimName: prowlarr-config
+        - name: sabnzbd-config
+          persistentVolumeClaim:
+            claimName: sabnzbd-config
+        - name: bazarr-config
+          persistentVolumeClaim:
+            claimName: bazarr-config
+
+      containers:
+        - name: gluetun
+          image: ghcr.io/qdm12/gluetun:v3.40.0
+          resources:
+            requests:
+              cpu: 100m
+              memory: 1G
+            limits:
+              memory: 1G
+          securityContext:
+            privileged: true
+            capabilities:
+              add: ["NET_ADMIN"]
+          ports:
+            - containerPort: 8096
+              name: jellyfin
+            - containerPort: 8989
+              name: sonarr
+            - containerPort: 7878
+              name: radarr
+            - containerPort: 9696
+              name: prowlarr
+            - containerPort: 9091
+              name: transmission
+            - containerPort: 8080
+              name: sabnzbd
+            - containerPort: 6767
+              name: bazarr
+          env:
+            #- name: PGID
+            #  value: "1000"
+            #- name: PUID
+            #  value: "1000"
+            #- name: TZ
+            #  value: "Europe/London"
+            - name: VPN_SERVICE_PROVIDER
+              value: "mullvad"
+            - name: VPN_TYPE
+              value: "wireguard"
+            - name: SERVER_CITIES
+              value: "Amsterdam"
+            - name: WIREGUARD_ADDRESSES
+              valueFrom:
+                secretKeyRef:
+                  name: gluetun-secrets
+                  key: wireguard-addresses
+            - name: WIREGUARD_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: gluetun-secrets
+                  key: wireguard-private-key
+
+          # If you are having connection issues, try enabling these variables to help diagnose it.
+          #- name: FIREWALL_DEBUG
+          #  value: "on"
+          #- name: FIREWALL_INPUT_PORTS
+          #  value: "8989"
+
+          # -- Connecting Other Containers --
+          # Define other containers that you want to connected to a VPN.
+          # When using Gluetun in a sidecar configuration, all other containers will use Gluetun's VPN connection.
+          # For testing purposes, you can `kubectl exec` into this curl container and run `curl https://ipinfo.io` to test your connection!
+          #- name: curl-container
+          #  image: quay.io/curl/curl:latest
+          #  command: ["sleep", "infinity"]
+
+        - name: jellyfin
+          image: lscr.io/linuxserver/jellyfin:10.10.7
+          resources:
+            requests:
+              cpu: 500m
+              memory: 2G
+            limits:
+              memory: 4G
+          env:
+            - name: PGID
+              value: "1000"
+            - name: PUID
+              value: "1000"
+            - name: TZ
+              value: "Europe/London"
+          volumeMounts:
+            - mountPath: /config
+              name: jellyfin-config
+            - mountPath: /data/tvshows
+              name: tv
+            - mountPath: /data/movies
+              name: movies
+            - mountPath: /transcodes
+              name: jellyfin-transcodes
+
+        - name: sonarr
+          image: lscr.io/linuxserver/sonarr:4.0.14
+          resources:
+            requests:
+              cpu: 100m
+              memory: 100M
+            limits:
+              memory: 2G
+          env:
+            - name: PGID
+              value: "1000"
+            - name: PUID
+              value: "1000"
+            - name: TZ
+              value: "Europe/London"
+          volumeMounts:
+            - mountPath: /config
+              name: sonarr-config
+            - mountPath: /downloads
+              name: downloads
+            - mountPath: /tv
+              name: tv
+
+        - name: radarr
+          image: lscr.io/linuxserver/radarr:5.23.3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 100M
+            limits:
+              memory: 2G
+          env:
+            - name: PGID
+              value: "1000"
+            - name: PUID
+              value: "1000"
+            - name: TZ
+              value: "Europe/London"
+          volumeMounts:
+            - mountPath: /config
+              name: radarr-config
+            - mountPath: /downloads
+              name: downloads
+            - mountPath: /movies
+              name: movies
+
+        - name: prowlarr
+          image: lscr.io/linuxserver/prowlarr:1.35.1
+          resources:
+            requests:
+              cpu: 100m
+              memory: 100M
+            limits:
+              memory: 500M
+          env:
+            - name: PGID
+              value: "1000"
+            - name: PUID
+              value: "1000"
+            - name: TZ
+              value: "Europe/London"
+          volumeMounts:
+            - mountPath: /config
+              name: prowlarr-config
+
+        - name: transmission
+          image: lscr.io/linuxserver/transmission:4.0.6
+          resources:
+            requests:
+              cpu: 100m
+              memory: 100M
+          env:
+            - name: PGID
+              value: "1000"
+            - name: PUID
+              value: "1000"
+            - name: TZ
+              value: "Etc/UTC"
+            - name: USER
+              value: "admin"
+            - name: PASS
+              valueFrom:
+                secretKeyRef:
+                  name: transmission-secrets
+                  key: transmission-password
+          volumeMounts:
+            - mountPath: /config
+              name: transmission-config
+            - mountPath: /downloads
+              name: downloads
+
+        - name: sabnzbd
+          image: lscr.io/linuxserver/sabnzbd:4.5.1
+          resources:
+            requests:
+              cpu: 100m
+              memory: 100M
+          env:
+            - name: PGID
+              value: "1000"
+            - name: PUID
+              value: "1000"
+            - name: TZ
+              value: "Europe/London"
+          volumeMounts:
+            - mountPath: /config
+              name: sabnzbd-config
+            - mountPath: /downloads
+              name: downloads
+            - mountPath: /incomplete-downloads
+              name: incomplete-downloads
+
+        - name: bazarr
+          image: lscr.io/linuxserver/bazarr:1.5.2
+          resources:
+            requests:
+              cpu: 100m
+              memory: 100M
+          env:
+            - name: PGID
+              value: "1000"
+            - name: PUID
+              value: "1000"
+            - name: TZ
+              value: "Europe/London"
+          volumeMounts:
+            - mountPath: /config
+              name: bazarr-config
+            - mountPath: /tv
+              name: tv
+            - mountPath: /movies
+              name: movies
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: download
+  labels:
+    app: download
+spec:
+  type: ClusterIP
+  selector:
+    app: download
+  ports:
+    - name: jellyfin
+      port: 8096
+      targetPort: 8096
+    - name: sonarr
+      port: 8989
+      targetPort: 8989
+    - name: radarr
+      port: 7878
+      targetPort: 7878
+    - name: prowlarr
+      port: 9696
+      targetPort: 9696
+    - name: transmission
+      port: 9091
+      targetPort: 9091
+    - name: sabnzbd
+      port: 8080
+      targetPort: 8080
+    - name: bazarr
+      port: 6767
+      targetPort: 6767

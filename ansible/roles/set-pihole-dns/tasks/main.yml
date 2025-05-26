@@ -1,9 +1,9 @@
-- name: Copy custom.list
-  copy:
+- name: Copy DNS hosts list
+  ansible.builtin.copy:
     src: custom.list
-    dest: /etc/pihole/custom.list
+    dest: /etc/pihole/hosts/custom.list
   register: pihole_config
 
 - name: Reload Pi-Hole DNS if there's changes
-  command: pihole restartdns
+  ansible.builtin.command: pihole reloaddns
   when: pihole_config.changed

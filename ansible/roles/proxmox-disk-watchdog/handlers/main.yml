@@ -1,6 +1,0 @@
-- name: Ensure disk-watchdog service is enabled and started
-  ansible.builtin.systemd:
-    name: disk-watchdog
-    state: restarted
-    enabled: yes
-    daemon_reload: yes

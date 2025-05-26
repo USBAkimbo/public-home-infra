@@ -7,8 +7,8 @@ on:
     paths:
       - docker/ansible-actions-runner/**
       - .github/workflows/docker-ansible-actions-runner.yml
- # schedule:
- #   - cron: 0 0 1 * * # 1st of every month at 00:00
+  schedule:
+    - cron: 0 0 1 * * # 1st of every month at 00:00
 
 jobs:
   docker:

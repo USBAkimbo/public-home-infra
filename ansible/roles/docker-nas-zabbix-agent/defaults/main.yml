@@ -1,0 +1,1 @@
+ZABBIX_HOSTNAME: "{{ ansible_hostname }}" # Use the hostname of the node

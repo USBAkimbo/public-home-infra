@@ -1,10 +1,12 @@
 # What is this?
-- This is the public fork of my home infra repo that I've been working on since 2024-04 (about 7 months so far)
-- This contains Terraform for Proxmox, Ansible to configure Ubuntu VMs and primarily Kubernetes using Talos Linux for apps
+- This is the public fork of my home infra repo that I've been working on since 2024-04
+- This contains Ansible to configure Ubuntu VMs and primarily Kubernetes using Talos Linux for apps
 - I've also got some self hosted runners, CCTV, lots of Ansible configs, etc
-- This will inevtiably rot over time, so please note that today is 2024-11-16 and if this hasn't been updated in more than 6 months, you should take everything here with a large grain of salt
+- This will inevtiably rot over time, so please check the commit history
+- If this hasn't been updated in more than 6 months, you should take everything here with a large grain of salt
 - Also note that Terraform for Proxmox is currently broken because I can't be bothered to update the provider as I don't use it - Talos VMs are too quick and simple to create
 - I heavily use the K8s parts, so you'll find they're up to date and hopefully useful
+- The Ansible parts should provide good inspiration too
 - Enjoy
 
 # GitHub Actions self-hosted runner
@@ -63,25 +65,32 @@ ansible-playbook -i hosts --vault-password-file vault-pass actions-playbooks/ans
 ```
 
 # Talos Linux on Proxmox for K8s
-- [Talos Linux is used to run the K8s cluster](https://www.talos.dev/v1.8/talos-guides/install/virtualized-platforms/proxmox/)
+- [Talos Linux is used to run the K8s cluster](https://www.talos.dev/latest/talos-guides/install/virtualized-platforms/proxmox/)
 - A custom Talos ISO is also used
-- [See the docs for this](https://www.talos.dev/v1.8/talos-guides/install/boot-assets/#image-factory)
+- [See the docs for this](https://www.talos.dev/latest/talos-guides/install/boot-assets/#image-factory)
 - This is required to support the qemu guest agent and the required components for Longhorn
 
 # Talos Linux install
 - Go to https://factory.talos.dev/
 - Use the wizard to select the following
-  - siderolabs/qemu-guest-agent
+  - siderolabs/amdgpu-firmware
+  - siderolabs/amd-ucode
+  - siderolabs/i915-ucode
+  - siderolabs/intel-ice-firmware
+  - siderolabs/intel-ucode
   - siderolabs/iscsi-tools
+  - siderolabs/qemu-guest-agent
   - siderolabs/util-linux-tools
-- This will give you an ID, such as `88d1f7a5c4f1d3aba7df787c448c1d3d008ed29cfb34af53fa0df4336a56040b`
+- These extensions allow for better CPU support, qemu agent support and NFS storage support
+- This will give you an ID, such as `a44ca58b65602c48398f2f3eb0b2b03fe5b431e6dfd7b4ee7b8ee3ad53802de7` (this generally persists through versions too)
 - Download the metal ISO and store it on each Proxmox node
 - On each Proxmox node, create a new VM with, for example, 8 CPUs, 16GB of RAM and a 500GB disk (will also be used for Longhorn data)
 - Connect the VM NIC to your K8s network
 - Boot the installer and follow the docs to install
 - These were my commands
 ```
-# Install Talosctl on your admin machine
+# Install/upgrade Talosctl on your admin machine
+sudo rm /usr/local/bin/talosctl
 curl -sL https://talos.dev/install | sh
 
 # Define vars
@@ -91,16 +100,16 @@ export NODE1="10.10.3.11"
 export NODE2="10.10.3.12"
 export NODE3="10.10.3.13"
 export NODE4="10.10.3.14"
-export TALOSCONFIG="_out/talosconfig"
+export TALOSCONFIG="talosconfig/talosconfig"
 
 # Generate cluster config
-talosctl gen config talos-proxmox-cluster https://$NODE1:6443 --output-dir _out
+talosctl gen config talos-proxmox-cluster https://$NODE1:6443 --output-dir talosconfig
 
 # Move Talos config to home folder path
-mv _out/talosconfig ~/.talos/config
+mv talosconfig/talosconfig ~/.talos/config
 
-# Create a copy of the kubeconfig in the _out folder (needed for backup)
-talosctl kubeconfig _out
+# Create a copy of the kubeconfig in the talosconfig folder (needed for backup)
+talosctl kubeconfig talosconfig
 
 # Edit the controlplane.yaml to allow control planes to be used as workers too
 sed -i 's/# allowSchedulingOnControlPlanes: true/allowSchedulingOnControlPlanes: true/' _out/controlplane.yaml
@@ -108,7 +117,7 @@ sed -i 's/# allowSchedulingOnControlPlanes: true/allowSchedulingOnControlPlanes:
 # Edit the control plane and worker config install section to use the custom iso as per the docs
   install:
     disk: /dev/sda # The disk used for installations.
-    image: factory.talos.dev/installer/88d1f7a5c4f1d3aba7df787c448c1d3d008ed29cfb34af53fa0df4336a56040b:v1.8.2
+    image: factory.talos.dev/installer/a44ca58b65602c48398f2f3eb0b2b03fe5b431e6dfd7b4ee7b8ee3ad53802de7:v1.10.2
 
 # Once you've updated the worker and controlplane, update them in KeePass
 # Ensure that you backup all files in the _out folder
@@ -118,10 +127,10 @@ talosctl config endpoint $NODE1
 talosctl config node $NODE1
 
 # Apply config to each node (this will reboot each node)
-talosctl apply-config --insecure --nodes $NODE1 --file _out/controlplane.yaml
-talosctl apply-config --insecure --nodes $NODE2 --file _out/controlplane.yaml
-talosctl apply-config --insecure --nodes $NODE3 --file _out/controlplane.yaml
-talosctl apply-config --insecure --nodes $NODE4 --file _out/worker.yaml
+talosctl apply-config --insecure --nodes $NODE1 --file talosconfig/controlplane.yaml
+talosctl apply-config --insecure --nodes $NODE2 --file talosconfig/controlplane.yaml
+talosctl apply-config --insecure --nodes $NODE3 --file talosconfig/controlplane.yaml
+talosctl apply-config --insecure --nodes $NODE4 --file talosconfig/worker.yaml
 
 # Bootstrap the cluster to start it using $NODE1
 talosctl bootstrap
@@ -132,7 +141,14 @@ talosctl kubeconfig
 ```
 
 - Give it some time and your cluster should be up
+
+# Install Kubectl
 - [Install kubectl on your admin machine](https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/)
+```
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+rm kubectl
+```
 - Configure `alias k=kubectl`
 - Check if you can see the nodes with `k get nodes`
 - You should see something like this
@@ -151,20 +167,38 @@ p-h-k8s-04   Ready    worker          20m   v1.29.3
 - They also contain secrets, so don't store them in Git
 
 # Upgrade Talos nodes
-- To upgrade a node from (for example) 1.7.0 to 1.7.4, re-install `talosctl` using the above link
+- To upgrade a node from (for example) 1.7.0 to 1.7.4, re-install `talosctl` using the above link to get the latest version
 - Then go to the factory link above and build a new image (making sure to select the qemu agent and the other extensions)
-- Then run the upgrade 1 node at a time
+- If the image hash has changed, switch to that
+- If not, use the one below and change the version tag
+- Then run the upgrade 1 node at a time with a 10 minute gap between nodes to allow for data syncing
 ```
-talosctl upgrade --nodes $NODE1 --image factory.talos.dev/installer/88d1f7a5c4f1d3aba7df787c448c1d3d008ed29cfb34af53fa0df4336a56040b:v1.8.2
-talosctl upgrade --nodes $NODE2 --image factory.talos.dev/installer/88d1f7a5c4f1d3aba7df787c448c1d3d008ed29cfb34af53fa0df4336a56040b:v1.8.2
-talosctl upgrade --nodes $NODE3 --image factory.talos.dev/installer/88d1f7a5c4f1d3aba7df787c448c1d3d008ed29cfb34af53fa0df4336a56040b:v1.8.2
-talosctl upgrade --nodes $NODE4 --image factory.talos.dev/installer/88d1f7a5c4f1d3aba7df787c448c1d3d008ed29cfb34af53fa0df4336a56040b:v1.8.2
+talosctl upgrade --nodes $NODE1 --image factory.talos.dev/installer/a44ca58b65602c48398f2f3eb0b2b03fe5b431e6dfd7b4ee7b8ee3ad53802de7:v1.10.2
+sleep 3600
+talosctl upgrade --nodes $NODE2 --image factory.talos.dev/installer/a44ca58b65602c48398f2f3eb0b2b03fe5b431e6dfd7b4ee7b8ee3ad53802de7:v1.10.2
+sleep 3600
+talosctl upgrade --nodes $NODE3 --image factory.talos.dev/installer/a44ca58b65602c48398f2f3eb0b2b03fe5b431e6dfd7b4ee7b8ee3ad53802de7:v1.10.2
+sleep 3600
+talosctl upgrade --nodes $NODE4 --image factory.talos.dev/installer/a44ca58b65602c48398f2f3eb0b2b03fe5b431e6dfd7b4ee7b8ee3ad53802de7:v1.10.2
 ```
+- IMPORTANT! Update the `controlplane.yaml` and `worker.yaml` files with these links too
 
 # Kubernetes config
 - The below is all in logical order as if you're starting from scratch
 - [Also see the API reference docs (these should be easier to find ffs)](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/)
 - I have a rule as well - anything that could break the cluster DOES NOT go in ArgoCD
+
+# Install K9s
+- Cluster viewer from the CLI
+- Seriously, this thing is awesome for exploring the cluster or just doing a little admin work
+- https://k9scli.io/
+- https://github.com/derailed/k9s/releases
+```
+LATEST_VERSION=$(curl -s https://api.github.com/repos/derailed/k9s/releases/latest | jq -r .tag_name)
+wget https://github.com/derailed/k9s/releases/download/$LATEST_VERSION/k9s_linux_amd64.deb
+sudo dpkg -i k9s_linux_amd64.deb
+rm k9s_linux_amd64.deb
+```
 
 # Install Helm
 ```
@@ -179,7 +213,7 @@ curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 |
 # https://metallb.universe.tf/installation/
 
 # Install (but check for an update first)
-kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.14.8/config/manifests/metallb-native.yaml
+kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.14.9/config/manifests/metallb-native.yaml
 
 # Apply configs (wait for pods to be ready first)
 k apply -f kubernetes/manual/metal-lb
@@ -199,7 +233,7 @@ kubectl -n ingress-nginx patch deployment/ingress-nginx-controller --patch-file 
 - Required for automated SSL certs for `myapp.mydomain.com`
 ```
 # https://cert-manager.io/docs/installation/helm/
-helm upgrade --install cert-manager cert-manager --repo https://charts.jetstack.io --namespace cert-manager --create-namespace --version v1.16.1 --set installCRDs=true
+helm upgrade --install cert-manager cert-manager --repo https://charts.jetstack.io --namespace cert-manager --create-namespace --version v1.17.2 --set installCRDs=true
 
 # See the repo for the secrets and issuer configs
 ```
@@ -244,6 +278,8 @@ kubectl label ns default pod-security.kubernetes.io/enforce=privileged
   - Prefer to schedule the storage on the node that the app is running on
 ```
 # Install using manifest in my repo
+# Ensure you update it using the latest release from the repo
+# https://github.com/longhorn/longhorn/releases
 kubectl apply -f kubernetes/manual/longhorn
 
 # Also set the pod security for the namespace otherwise Longhorn won't start
@@ -305,17 +341,31 @@ kubeseal < path/to/secret.yml > path/to/sealedsecret.yml
 - If your cluster breaks, your `sealedsecrets` will not be readable as the private key is lost
 - To prevent this, backup the key
 ```
-kubectl get secret -n kube-system -l sealedsecrets.bitnami.com/sealed-secrets-key -o yaml >main.key
+kubectl get secret -n kube-system -l sealedsecrets.bitnami.com/sealed-secrets-key -o yaml > sealed-secrets-key.yaml
+```
+- Save `sealed-secrets-key.yaml` to KeePass under `Kubeseal Private Key` as an attachment
 
-echo "---" >> main.key
-kubectl get secret -n kube-system sealed-secrets-key -o yaml >>main.key
+# Restore Kubeseal key from backup
+- Use this command if you've just re-installed Kubeseal and you want to re-use your key
 ```
-- Save `main.key` to KeePass under `Kubeseal Private Key` as an attachment
-- You can restore using this if required
-```
-# Save main.key to a file
-kubectl apply -f main.key
+# Save sealed-secrets-key.yaml to a file
+kubectl apply -f sealed-secrets-key.yaml
+
+# Restart sealed secrets controller
 kubectl delete pod -n kube-system -l name=sealed-secrets-controller
+```
+
+# Decrypt a sealed secret offline
+- First follow the above steps to get the key or get it from KeePass
+- Then edit your sealed secret and ensure you're using the JSON syntax highlighting in VS Code
+- Ensure you have no formatting errors or it won't decrypt
+- Decrypt using this command
+```
+kubeseal --recovery-unseal --recovery-private-key sealed-secrets-key.yaml < kubernetes/path/to/sealedsecret.yml
+```
+- Then you just need to decode the secrets with `base64`
+```
+echo "text" | base64 -d
 ```
 
 # GitHub Actions Runner Controller
@@ -402,6 +452,9 @@ db.getSiblingDB("unifi_stat").createUser({user: "unifi", pwd: "unifi", roles: [{
 # Force deployment to run on a specific node with node labels
 - [First you need to label the node](https://kubernetes.io/docs/tasks/configure-pod-container/assign-pods-nodes/#before-you-begin)
 ```
+# Show all labels
+kubectl get nodes --show-labels
+
 kubectl label nodes p-h-k8s-04 frigate=allowed
 kubectl label nodes p-h-k8s-04 immich=allowed
 kubectl label nodes p-h-k8s-04 download=allowed
@@ -414,6 +467,11 @@ spec:
     spec:
       nodeSelector:
         key: value
+```
+
+# Run a container for testing on a specific node
+```
+kubectl run -ti --rm test --image=ubuntu:22.04 --overrides='{"spec": { "nodeSelector": {"kubernetes.io/hostname": "p-h-k8s-01"}}}'
 ```
 
 # Zabbix monitoring

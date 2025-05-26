@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: immich-db
+  labels:
+    app: immich-db
+spec:
+  selector:
+    matchLabels:
+      app: immich-db
+  replicas: 1
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: immich-db
+    spec:
+      nodeSelector:
+        immich: allowed
+      volumes:
+        - name: immich-db
+          nfs:
+            path: /mnt/ssd/k8s/immich/pgdata
+            server: 10.10.3.2
+
+      restartPolicy: Always
+      dnsConfig:
+        options:
+          - name: ndots
+            value: "1"
+
+      containers:
+        - name: immich-db
+          image: tensorchord/pgvecto-rs:pg14-v0.2.0@sha256:90724186f0a3517cf6914295b5ab410db9ce23190a2d9d0b9dd6463e3fa298f0
+          resources:
+            requests:
+              cpu: 100m
+              memory: 100M
+            limits:
+              memory: 4G
+
+          securityContext:
+            runAsUser: 1000
+
+          env:
+            - name: POSTGRES_DB
+              value: immich
+            - name: POSTGRES_USER
+              value: immich
+            - name: POSTGRES_PASSWORD
+              value: immich
+            - name: PG_DATA
+              value: /var/lib/postgresql/data
+
+          ports:
+            - containerPort: 5432
+              name: immich-db
+
+          volumeMounts:
+            - mountPath: /var/lib/postgresql/data
+              name: immich-db
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: immich-db
+  labels:
+    app: immich-db
+spec:
+  type: ClusterIP
+  ports:
+    - name: immich-db
+      port: 5432
+      targetPort: 5432
+  selector:
+    app: immich-db

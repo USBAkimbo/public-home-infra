@@ -29,7 +29,7 @@ spec:
           value: "1"
       containers:
       - name: zabbix-db
-        image: mariadb:11.3
+        image: mariadb:11.5
         resources:
           requests:
             cpu: 100m
@@ -62,7 +62,6 @@ spec:
         securityContext:
           runAsNonRoot: true
           runAsUser: 1000
-
 ---
 
 apiVersion: v1

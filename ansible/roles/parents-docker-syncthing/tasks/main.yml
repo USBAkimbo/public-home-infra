@@ -2,14 +2,13 @@
   file:
     path: /opt/dockervolumes/syncthing/config
     state: directory
-    mode: '770'
-    recurse: true
+    mode: "770"
 
 - name: Copy over docker-compose.yml
   template:
     src: docker-compose.yml.j2
     dest: /opt/dockervolumes/syncthing/docker-compose.yml
-    mode: 0770
+    mode: "770"
 
 - name: Start compose stack
   community.docker.docker_compose_v2:

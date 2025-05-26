@@ -1,28 +1,32 @@
 - name: Create Traefik directory
-  file:
-    path: /opt/dockervolumes/traefik
+  ansible.builtin.file:
+    path: "{{ DOCKER_VOLUMES_ROOT }}/traefik"
     state: directory
-    recurse: yes
-    mode: '770'
+    mode: "770"
 
 - name: Create LetsEncrypt directory
-  file:
-    path: /opt/dockervolumes/traefik/letsencrypt
+  ansible.builtin.file:
+    path: "{{ DOCKER_VOLUMES_ROOT }}/traefik/letsencrypt"
     state: directory
     recurse: yes
-    mode: '600' # Required for Traefik to work
-
-- name: Copy over docker-compose.yml
-  template:
-    src: docker-compose.yml.j2
-    dest: /opt/dockervolumes/traefik/docker-compose.yml
-    mode: '770'
+    mode: "600" # Required for Traefik to work
 
 - name: Create Traefik proxy network
   community.docker.docker_network:
     name: proxy
 
+- name: Copy over docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ DOCKER_VOLUMES_ROOT }}/traefik/docker-compose.yml"
+    mode: "770"
+
 - name: Start compose stack
   community.docker.docker_compose_v2:
-    project_src: /opt/dockervolumes/traefik
+    project_src: "{{ DOCKER_VOLUMES_ROOT }}/traefik"
     project_name: traefik
+
+- name: Cleanup compose file
+  ansible.builtin.file:
+    path: "{{ DOCKER_VOLUMES_ROOT }}/traefik/docker-compose.yml"
+    state: absent

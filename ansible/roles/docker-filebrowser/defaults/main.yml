@@ -1,1 +1,5 @@
+DOCKER_VOLUMES_ROOT: /opt/dockervolumes
+FILEBROWSER_SHARE_ROOT: /mnt/data/share
+FILEBROWSER_UID: 1000
 FILEBROWSER_DNS_NAME: filebrowser.mydomain.com
+SEQ_GELF_IP: 10.10.3.2

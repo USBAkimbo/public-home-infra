@@ -19,48 +19,46 @@ spec:
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
-          - labelSelector:
-              matchExpressions:
-              - key: app
-                operator: In
-                values:
-                - zabbix-server-2
-            topologyKey: "kubernetes.io/hostname"
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - zabbix-server-2
+              topologyKey: "kubernetes.io/hostname"
       restartPolicy: Always
       dnsConfig:
         options:
-        - name: ndots
-          value: "1"
+          - name: ndots
+            value: "1"
       containers:
-      - name: zabbix-server-1
-        image: zabbix/zabbix-server-mysql:ubuntu-7.0.5
-        resources:
-          requests:
-            cpu: 100m
-            memory: 100M
-          limits:
-            memory: 2G
-        env:
-        - name: MYSQL_USER
-          value: zabbix
-        - name: MYSQL_PASSWORD
-          value: zabbix
-        - name: DB_SERVER_HOST
-          value: zabbix-db
-        - name: ZBX_STARTPINGERS
-          value: "4"
-        - name: ZBX_CACHESIZE
-          value: "128M"
-        - name: ZBX_HANODENAME
-          value: "zabbix-server-1"
-        - name: ZBX_NODEADDRESS
-          value: "zabbix-server-1"
-        ports:
-        - containerPort: 10051
-          name: zabbix-server-1
-
+        - name: zabbix-server-1
+          image: zabbix/zabbix-server-mysql:ubuntu-7.0.13
+          resources:
+            requests:
+              cpu: 100m
+              memory: 100M
+            limits:
+              memory: 2G
+          env:
+            - name: MYSQL_USER
+              value: zabbix
+            - name: MYSQL_PASSWORD
+              value: zabbix
+            - name: DB_SERVER_HOST
+              value: zabbix-db
+            - name: ZBX_STARTPINGERS
+              value: "4"
+            - name: ZBX_CACHESIZE
+              value: "128M"
+            - name: ZBX_HANODENAME
+              value: "zabbix-server-1"
+            - name: ZBX_NODEADDRESS
+              value: "zabbix-server-1"
+          ports:
+            - containerPort: 10051
+              name: zabbix-server-1
 ---
-
 apiVersion: v1
 kind: Service
 metadata:
@@ -70,14 +68,12 @@ metadata:
 spec:
   type: ClusterIP
   ports:
-  - name: zabbix-server-1
-    port: 10051
-    targetPort: 10051
+    - name: zabbix-server-1
+      port: 10051
+      targetPort: 10051
   selector:
     app: zabbix-server-1
-
 ---
-
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -99,48 +95,46 @@ spec:
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
-          - labelSelector:
-              matchExpressions:
-              - key: app
-                operator: In
-                values:
-                - zabbix-server-1
-            topologyKey: "kubernetes.io/hostname"
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - zabbix-server-1
+              topologyKey: "kubernetes.io/hostname"
       restartPolicy: Always
       dnsConfig:
         options:
-        - name: ndots
-          value: "1"
+          - name: ndots
+            value: "1"
       containers:
-      - name: zabbix-server-2
-        image: zabbix/zabbix-server-mysql:ubuntu-7.0.5
-        resources:
-          requests:
-            cpu: 100m
-            memory: 100M
-          limits:
-            memory: 2G
-        env:
-        - name: MYSQL_USER
-          value: zabbix
-        - name: MYSQL_PASSWORD
-          value: zabbix
-        - name: DB_SERVER_HOST
-          value: zabbix-db
-        - name: ZBX_STARTPINGERS
-          value: "4"
-        - name: ZBX_CACHESIZE
-          value: "128M"
-        - name: ZBX_HANODENAME
-          value: "zabbix-server-2"
-        - name: ZBX_NODEADDRESS
-          value: "zabbix-server-2"
-        ports:
-        - containerPort: 10051
-          name: zabbix-server-2
-
+        - name: zabbix-server-2
+          image: zabbix/zabbix-server-mysql:ubuntu-7.0.13
+          resources:
+            requests:
+              cpu: 100m
+              memory: 100M
+            limits:
+              memory: 2G
+          env:
+            - name: MYSQL_USER
+              value: zabbix
+            - name: MYSQL_PASSWORD
+              value: zabbix
+            - name: DB_SERVER_HOST
+              value: zabbix-db
+            - name: ZBX_STARTPINGERS
+              value: "4"
+            - name: ZBX_CACHESIZE
+              value: "128M"
+            - name: ZBX_HANODENAME
+              value: "zabbix-server-2"
+            - name: ZBX_NODEADDRESS
+              value: "zabbix-server-2"
+          ports:
+            - containerPort: 10051
+              name: zabbix-server-2
 ---
-
 apiVersion: v1
 kind: Service
 metadata:
@@ -150,8 +144,8 @@ metadata:
 spec:
   type: ClusterIP
   ports:
-  - name: zabbix-server-2
-    port: 10051
-    targetPort: 10051
+    - name: zabbix-server-2
+      port: 10051
+      targetPort: 10051
   selector:
     app: zabbix-server-2

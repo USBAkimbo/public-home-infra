@@ -1,0 +1,187 @@
+services:
+  # VPN container
+  # All containers force their network traffic through this container
+  gluetun:
+    container_name: gluetun
+    image: ghcr.io/qdm12/gluetun:v3.40.0
+    restart: always
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      - TZ=Europe/London
+      - VPNSP=mullvad
+      - VPN_TYPE=wireguard
+      - WIREGUARD_PRIVATE_KEY={{ GLUETUN_WIREGUARD_PRIVATE_KEY }}
+      - WIREGUARD_ADDRESSES={{ GLUETUN_WIREGUARD_ADDRESSES }}
+    labels:
+      # Enable Traefik reverse proxy
+      - traefik.enable=true
+      # Jellyfin
+      - traefik.http.routers.jellyfin.rule=Host(`{{ JELLYFIN_FQDN }}`)
+      - traefik.http.routers.jellyfin.entrypoints=websecure
+      - traefik.http.routers.jellyfin.tls.certresolver=cloudflare
+      - traefik.http.services.jellyfin.loadbalancer.server.port=8096
+      - traefik.http.routers.jellyfin.service=jellyfin
+      # Sonarr
+      - traefik.http.routers.sonarr.rule=Host(`{{ SONARR_FQDN }}`)
+      - traefik.http.routers.sonarr.entrypoints=websecure
+      - traefik.http.routers.sonarr.tls.certresolver=cloudflare
+      - traefik.http.services.sonarr.loadbalancer.server.port=8989
+      - traefik.http.routers.sonarr.service=sonarr
+      # Radarr
+      - traefik.http.routers.radarr.rule=Host(`{{ RADARR_FQDN }}`)
+      - traefik.http.routers.radarr.entrypoints=websecure
+      - traefik.http.routers.radarr.tls.certresolver=cloudflare
+      - traefik.http.services.radarr.loadbalancer.server.port=7878
+      - traefik.http.routers.radarr.service=radarr
+      # Prowlarr
+      - traefik.http.routers.prowlarr.rule=Host(`{{ PROWLARR_FQDN }}`)
+      - traefik.http.routers.prowlarr.entrypoints=websecure
+      - traefik.http.routers.prowlarr.tls.certresolver=cloudflare
+      - traefik.http.services.prowlarr.loadbalancer.server.port=9696
+      - traefik.http.routers.prowlarr.service=prowlarr
+      # Transmission
+      - traefik.http.routers.transmission.rule=Host(`{{ TRANSMISSION_FQDN }}`)
+      - traefik.http.routers.transmission.entrypoints=websecure
+      - traefik.http.routers.transmission.tls.certresolver=cloudflare
+      - traefik.http.services.transmission.loadbalancer.server.port=9091
+      - traefik.http.routers.transmission.service=transmission
+      # SABnzbd
+      - traefik.http.routers.sabnzbd.rule=Host(`{{ SABNZBD_FQDN }}`)
+      - traefik.http.routers.sabnzbd.entrypoints=websecure
+      - traefik.http.routers.sabnzbd.tls.certresolver=cloudflare
+      - traefik.http.services.sabnzbd.loadbalancer.server.port=8080
+      - traefik.http.routers.sabnzbd.service=sabnzbd
+      # Bazarr
+      - traefik.http.routers.bazarr.rule=Host(`{{ BAZARR_FQDN }}`)
+      - traefik.http.routers.bazarr.entrypoints=websecure
+      - traefik.http.routers.bazarr.tls.certresolver=cloudflare
+      - traefik.http.services.bazarr.loadbalancer.server.port=6767
+      - traefik.http.routers.bazarr.service=bazarr
+    #ports:
+      # Host:Container/tcp|udp
+      # If not specified it will be TCP
+      # Jellyfin
+      #- 8096:8096
+      # Sonarr
+      #- 8989:8989
+      # Radarr
+      #- 7878:7878
+      # Prowlarr
+      #- 9696:9696
+      # Transmission
+      #- 9091:9091
+      # SABnzbd
+      #- 8686:8080
+      # Bazarr
+      #- 6767:6767
+      # Add more ports here as needed
+    networks:
+      - proxy
+
+  jellyfin:
+    container_name: jellyfin
+    image: lscr.io/linuxserver/jellyfin:10.10.7
+    restart: always
+    network_mode: service:gluetun
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+    volumes:
+      - {{ DOCKER_VOLUMES_ROOT }}/jellyfin:/config
+      - {{ TV_FOLDER_PATH }}:/data/tvshows
+      - {{ MOVIES_FOLDER_PATH }}:/data/movies
+      - {{ DOWNLOADS_FOLDER_PATH }}:/transcodes
+    devices:
+      - /dev/dri:/dev/dri # AMD onboard GPU
+
+  sonarr:
+    container_name: sonarr
+    image: lscr.io/linuxserver/sonarr:4.0.14
+    restart: always
+    network_mode: service:gluetun
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+    volumes:
+      - {{ DOCKER_VOLUMES_ROOT }}/sonarr:/config
+      - {{ DOWNLOADS_FOLDER_PATH }}:/downloads
+      - {{ TV_FOLDER_PATH }}:/tv
+
+  radarr:
+    container_name: radarr
+    image: lscr.io/linuxserver/radarr:5.23.3
+    restart: always
+    network_mode: service:gluetun
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+    volumes:
+      - {{ DOCKER_VOLUMES_ROOT }}/radarr:/config
+      - {{ DOWNLOADS_FOLDER_PATH }}:/downloads
+      - {{ MOVIES_FOLDER_PATH }}:/movies
+
+  prowlarr:
+    container_name: prowlarr
+    image: lscr.io/linuxserver/prowlarr:1.35.1
+    restart: always
+    network_mode: service:gluetun
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+    volumes:
+      - {{ DOCKER_VOLUMES_ROOT }}/prowlarr:/config
+
+  transmission:
+    container_name: transmission
+    image: lscr.io/linuxserver/transmission:4.0.6
+    restart: always
+    network_mode: service:gluetun
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+      - USER=admin
+      - PASS={{ TRANSMISSION_PASSWORD }}
+    volumes:
+      - {{ DOCKER_VOLUMES_ROOT }}/transmission:/config
+      - {{ DOWNLOADS_FOLDER_PATH }}:/downloads
+
+  sabnzbd:
+    container_name: sabnzbd
+    image: lscr.io/linuxserver/sabnzbd:4.5.1
+    restart: always
+    network_mode: service:gluetun
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+    volumes:
+      - {{ DOCKER_VOLUMES_ROOT }}/sabnzbd:/config
+      - {{ DOWNLOADS_FOLDER_PATH }}:/downloads
+      - {{ DOWNLOADS_FOLDER_PATH }}/incomplete-downloads:/incomplete-downloads
+
+  bazarr:
+    container_name: bazarr
+    image: lscr.io/linuxserver/bazarr:1.5.2
+    restart: always
+    network_mode: service:gluetun
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+    volumes:
+      - {{ DOCKER_VOLUMES_ROOT }}/bazarr:/config
+      - {{ TV_FOLDER_PATH }}:/tv
+      - {{ MOVIES_FOLDER_PATH }}:/movies
+
+# Use Traefik proxy network for ingress
+networks:
+  proxy:
+    external: true

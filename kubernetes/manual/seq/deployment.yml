@@ -1,0 +1,165 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: seq
+  labels:
+    app: seq
+spec:
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: seq
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: seq
+    spec:
+      volumes:
+        - name: seq-data
+          persistentVolumeClaim:
+            claimName: seq-data
+
+      restartPolicy: Always
+      dnsConfig:
+        options:
+          - name: ndots
+            value: "1"
+      containers:
+        - name: seq
+          image: datalust/seq:2024.3
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1G
+
+          env:
+            - name: ACCEPT_EULA
+              value: "Y"
+
+          ports:
+            - containerPort: 80
+              name: seq-web
+            - containerPort: 5341
+              name: seq-ingest
+
+          volumeMounts:
+            - mountPath: /data
+              name: seq-data
+
+          readinessProbe:
+            exec:
+              command:
+                - /seqsvr/Client/seqcli
+                - node
+                - health
+                - -s
+                - http://localhost
+            initialDelaySeconds: 5
+            periodSeconds: 15
+
+          livenessProbe:
+            exec:
+              command:
+                - /seqsvr/Client/seqcli
+                - node
+                - health
+                - -s
+                - http://localhost
+            initialDelaySeconds: 5
+            periodSeconds: 30
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: seq-syslog
+  labels:
+    app: seq-syslog
+spec:
+  selector:
+    matchLabels:
+      app: seq-syslog
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: seq-syslog
+    spec:
+      restartPolicy: Always
+      dnsConfig:
+        options:
+          - name: ndots
+            value: "1"
+      containers:
+        - name: seq-syslog
+          image: datalust/seq-input-syslog:1.0.93
+          resources:
+            requests:
+              cpu: 100m
+              memory: 100m
+            limits:
+              memory: 4G
+
+          env:
+            - name: SEQ_ADDRESS
+              value: "http://seq-ingest.default.svc.cluster.local:5341"
+
+            - name: SEQ_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: seq-secrets
+                  key: SEQ_API_KEY
+
+          ports:
+            - containerPort: 514
+              protocol: UDP
+              name: seq-syslog
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: seq-web
+  labels:
+    app: seq
+spec:
+  type: ClusterIP
+  ports:
+    - name: seq-web
+      port: 80
+      targetPort: 80
+  selector:
+    app: seq
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: seq-ingest
+  labels:
+    app: seq
+spec:
+  type: ClusterIP
+  ports:
+    - name: seq-ingest
+      port: 5341
+      targetPort: 5341
+  selector:
+    app: seq
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: seq-syslog
+  labels:
+    app: seq-syslog
+  annotations:
+    metallb.universe.tf/loadBalancerIPs: 10.10.3.8
+spec:
+  type: LoadBalancer
+  ports:
+    - name: seq-syslog
+      port: 514
+      targetPort: 514
+      protocol: UDP
+  selector:
+    app: seq-syslog

@@ -1,26 +1,30 @@
 - name: Create Frigate directories
-  file:
+  ansible.builtin.file:
     path: "{{ item }}"
     state: directory
-    mode: 0770
-    recurse: yes
+    mode: "770"
   loop:
-    - /opt/dockervolumes/frigate
-    - /opt/dockervolumes/frigate/config
+    - "{{ FRIGATE_RECORDINGS }}"
+    - "{{ DOCKER_VOLUMES_ROOT }}/frigate/config"
 
 - name: Copy over docker-compose.yml
-  template:
+  ansible.builtin.template:
     src: docker-compose.yml.j2
-    dest: /opt/dockervolumes/frigate/docker-compose.yml
-    mode: 0770
+    dest: "{{ DOCKER_VOLUMES_ROOT }}/frigate/docker-compose.yml"
+    mode: "770"
 
 - name: Copy Frigate config
-  copy:
+  ansible.builtin.copy:
     src: config.yml
-    dest: /opt/dockervolumes/frigate/config/config.yml
-    mode: 0770
+    dest: "{{ DOCKER_VOLUMES_ROOT }}/frigate/config/config.yml"
+    mode: "770"
 
 - name: Start compose stack
   community.docker.docker_compose_v2:
-    project_src: /opt/dockervolumes/frigate
+    project_src: "{{ DOCKER_VOLUMES_ROOT }}/frigate"
     project_name: frigate
+
+- name: Cleanup compose file
+  ansible.builtin.file:
+    path: "{{ DOCKER_VOLUMES_ROOT }}/frigate/docker-compose.yml"
+    state: absent

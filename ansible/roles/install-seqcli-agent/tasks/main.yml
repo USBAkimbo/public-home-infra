@@ -24,8 +24,7 @@
   ansible.builtin.file:
     path: "/opt/seqcli/seqcli-{{ SEQCLI_VERSION }}-linux-x64"
     state: directory
-    mode: '700'
-    recurse: true
+    mode: "700"
   when: not seqcli_current_installed.stat.exists
 
 - name: Extract seqcli gzip

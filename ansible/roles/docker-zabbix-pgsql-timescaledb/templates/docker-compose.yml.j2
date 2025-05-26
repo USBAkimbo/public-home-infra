@@ -1,0 +1,11 @@
+services:
+  pgsql-timescaledb:
+    container_name: zabbix-db
+    image: timescale/timescaledb:2.19.3-pg17
+    restart: always
+    volumes:
+      - {{ ZABBIX_PGSQL_DATA_PATH }}/data:/home/postgres/pgdata/data
+    environment:
+      - POSTGRES_PASSWORD={{ ZABBIX_PGSQL_PASSWORD }}
+    ports:
+      - 5432:5432

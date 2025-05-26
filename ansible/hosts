@@ -1,7 +1,13 @@
 docker_hosts:
   hosts:
+    truenas:
+      ansible_host: 10.10.3.2
+      ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
+      ansible_user: root
+      ansible_ssh_private_key_file: /tmp/key
+
     parents-server:
-      ansible_host: 192.168.0.13
+      ansible_host: 10.10.10.5
       ansible_password: !vault |
         $ANSIBLE_VAULT;1.1;AES256
         34363666666665333665623733303662626561653636616335393066396234653438323962643139
@@ -16,16 +22,22 @@ docker_hosts:
         63393939313435643936376333623735636466316561356637393335373339656361663037656265
         3530343938666535660a336439653330353233393537333038373438303236643839316466323862
         36363837323334666362316638663934643330626266636462616235363831303931
-  vars:
-    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
-    ansible_user: cla
+      ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
+      ansible_user: cla
 
 test_hosts:
   hosts:
     d-h-mig-01:
       ansible_host: 10.10.5.5
   vars:
-    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+    ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
+    ansible_user: root
+
+containers:
+  hosts:
+    container1:
+      ansible_connection: docker
+  vars:
     ansible_user: root
 
 dns_servers:
@@ -64,7 +76,7 @@ dns_servers:
         38346631616437393833666435633530386135343439653332633233323563376231
   vars:
     ansible_user: root
-    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+    ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
 
 proxmox_hosts:
   hosts:
@@ -120,7 +132,7 @@ proxmox_hosts:
         30383035386634613731366361636637653165383261326261366232386166623538
   vars:
     ansible_user: root
-    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+    ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
 
 switches:
   hosts:
@@ -190,7 +202,7 @@ k3s_hosts:
       ansible_host: 10.10.5.3
   vars:
     ansible_user: cla
-    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+    ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
     ansible_ssh_private_key_file: /tmp/key
 
 decommed_hosts:

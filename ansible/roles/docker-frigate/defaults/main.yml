@@ -1,7 +1,8 @@
+FRIGATE_RECORDINGS: /mnt/ssd/frigate/recordings
+DOCKER_VOLUMES_ROOT: /opt/dockervolumes
 FRIGATE_C1_PASSWORD: pass1
 FRIGATE_C2_PASSWORD: pass2
 FRIGATE_C3_PASSWORD: pass3
 FRIGATE_C4_PASSWORD: pass4
 CCTV_FQDN: cctv.mydomain.com
-FRIGATE_WEB_UI_CREDS: admin:$apr1$lRXHwhFa$IznZRr5W1M8XbVwJbNqOM1
-# echo 'password' | htpasswd -ic auth-temp-file admin && cat auth-temp-file
+SEQ_GELF_IP: 10.10.3.2

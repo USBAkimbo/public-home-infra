@@ -9,7 +9,14 @@ data:
     DT=$(date "+%Y-%m-%d--%H-%M")
 
     echo "Starting backup at $DT"
-    mariadb-dump -h zabbix-db -uzabbix -pzabbix --all-databases > /backups/zabbix-mariadb-backup-$DT.sql
+    mariadb-dump -h zabbix-db \
+    -uzabbix \
+    -pzabbix \
+    --single-transaction \
+    --quick \
+    --compress \
+    --all-databases \
+    > /backups/zabbix-mariadb-backup-$DT.sql
 
     if [ $? -ne 0 ]; then
       echo "Backup failed"
@@ -39,7 +46,6 @@ data:
     echo "Backup complete at $(date "+%Y-%m-%d--%H-%M")"
     echo 0 > /backups/last-exit-code.log
     exit 0
-
 ---
 
 apiVersion: batch/v1
@@ -65,7 +71,7 @@ spec:
 
           containers:
           - name: mariadb-backup
-            image: mariadb:11.3
+            image: mariadb:11.5
             securityContext:
               runAsUser: 1000
             command:

@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ppngx-db
+  labels:
+    app: ppngx-db
+spec:
+  selector:
+    matchLabels:
+      app: ppngx-db
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: ppngx-db
+    spec:
+      volumes:
+      - name: ppngx-db
+        nfs:
+          path: /mnt/ssd/k8s/paperless-ngx/ppngx-db
+          server: 10.10.3.2
+
+      restartPolicy: Always
+      dnsConfig:
+        options:
+        - name: ndots
+          value: "1"
+      containers:
+      - name: ppngx-db
+        image: docker.io/library/postgres:16
+        securityContext:
+          runAsUser: 1000
+          runAsGroup: 1000
+        resources:
+          requests:
+            cpu: 100m
+            memory: 200m
+
+        env:
+          - name: POSTGRES_DB
+            value: paperless
+          - name: POSTGRES_USER
+            value: paperless
+          - name: POSTGRES_PASSWORD
+            value: paperless
+
+        ports:
+          - containerPort: 5432
+            name: ppngx-db
+
+        volumeMounts:
+        - mountPath: /var/lib/postgresql/data
+          name: ppngx-db
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: ppngx-db
+  labels:
+    app: ppngx-db
+spec:
+  type: ClusterIP
+  ports:
+  - name: ppngx-db
+    port: 5432
+    targetPort: 5432
+  selector:
+    app: ppngx-db

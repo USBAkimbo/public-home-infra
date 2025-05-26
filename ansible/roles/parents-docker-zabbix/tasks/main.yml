@@ -2,11 +2,10 @@
   ansible.builtin.file:
     path: "{{ item }}"
     state: directory
-    mode: '0770'
-    recurse: true
+    mode: "770"
   loop:
-  - /opt/dockervolumes/zabbix/zabbix-db/mariadb
-  - /opt/dockervolumes/zabbix/zabbix-db/backups
+    - /opt/dockervolumes/zabbix/zabbix-db/mariadb
+    - /opt/dockervolumes/zabbix/zabbix-db/backups
 
 - name: Copy over docker-compose.yml
   template:
@@ -22,7 +21,7 @@
     src: mariadb-backup.sh.j2
     dest: /opt/dockervolumes/zabbix/zabbix-db/mariadb-backup.sh
     owner: root
-    mode: '0700'
+    mode: "700"
 
 - name: Create backup cron job daily at 04:00
   ansible.builtin.cron:

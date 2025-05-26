@@ -1,0 +1,27 @@
+- name: Install WireGuard
+  ansible.builtin.apt:
+    name: wireguard
+    state: latest
+    cache_valid_time: 3600
+
+- name: Copy over config
+  ansible.builtin.template:
+    src: wg0.conf.j2
+    dest: /etc/wireguard/wg0.conf
+    mode: "0600"
+  register: config
+
+- name: Reload WireGuard interface
+  ansible.builtin.systemd:
+    name: wg-quick@wg0
+    state: restarted
+    enabled: true
+  when: config.changed
+  async: 60
+  poll: 0
+
+- name: Wait for system to reconnect
+  ansible.builtin.wait_for_connection:
+    delay: 5
+    timeout: 30
+  when: config.changed

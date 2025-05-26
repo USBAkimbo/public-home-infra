@@ -17,46 +17,44 @@ spec:
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
-          - labelSelector:
-              matchExpressions:
-              - key: app
-                operator: In
-                values:
-                - zabbix-web
-            topologyKey: "kubernetes.io/hostname"
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - zabbix-web
+              topologyKey: "kubernetes.io/hostname"
       restartPolicy: Always
       dnsConfig:
         options:
-        - name: ndots
-          value: "1"
+          - name: ndots
+            value: "1"
       containers:
-      - name: zabbix-web
-        image: zabbix/zabbix-web-nginx-mysql:ubuntu-7.0.5
-        resources:
-          requests:
-            cpu: 100m
-            memory: 100M
-          limits:
-            memory: 500M
+        - name: zabbix-web
+          image: zabbix/zabbix-web-nginx-mysql:ubuntu-7.0.13
+          resources:
+            requests:
+              cpu: 100m
+              memory: 100M
+            limits:
+              memory: 500M
 
-        env:
-        - name: MYSQL_USER
-          value: zabbix
-        - name: MYSQL_PASSWORD
-          value: zabbix
-        - name: DB_SERVER_HOST
-          value: zabbix-db
-        - name: ZBX_SERVER_NAME
-          value: "Zabbix Kubernetes"
-        - name: PHP_TZ
-          value: Europe/London
+          env:
+            - name: MYSQL_USER
+              value: zabbix
+            - name: MYSQL_PASSWORD
+              value: zabbix
+            - name: DB_SERVER_HOST
+              value: zabbix-db
+            - name: ZBX_SERVER_NAME
+              value: "Zabbix Kubernetes"
+            - name: PHP_TZ
+              value: Europe/London
 
-        ports:
-        - containerPort: 8080
-          name: zabbix-web
-
+          ports:
+            - containerPort: 8080
+              name: zabbix-web
 ---
-
 apiVersion: v1
 kind: Service
 metadata:
@@ -66,8 +64,8 @@ metadata:
 spec:
   type: ClusterIP
   ports:
-  - name: zabbix-web
-    port: 8080
-    targetPort: 8080
+    - name: zabbix-web
+      port: 8080
+      targetPort: 8080
   selector:
     app: zabbix-web

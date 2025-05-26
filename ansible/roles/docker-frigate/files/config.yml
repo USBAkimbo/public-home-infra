@@ -1,3 +1,9 @@
+version: 0.15-1
+
+# Disable TLS as we're using a reverse proxy
+tls:
+  enabled: false
+
 # Turn off MQTT because I'm not using Home Assistant
 mqtt:
   enabled: false
@@ -27,10 +33,26 @@ objects:
     - cat
     - dog
 
+# Coral AI USB accelerator for object detection
 detectors:
   coral:
+    type: edgetpu
     device: usb
-    type: edgetpu # Coral USB
+
+##### Start of OpenVino config for CPU detection #####
+
+#detectors:
+#  ov:
+#    type: openvino
+#    model_path: /openvino-model/ssdlite_mobilenet_v2.xml
+#model:
+#  width: 300
+#  height: 300
+#  input_tensor: nhwc
+#  input_pixel_format: bgr
+#  labelmap_path: /openvino-model/coco_91cl_bkgr.txt
+
+##### End of OpenVino config for CPU detection #####
 
 cameras:
   c1-side:
@@ -40,7 +62,7 @@ cameras:
           input_args: preset-http-reolink
           roles:
             - record
-        - path: http://10.10.8.11/flv?port=1935&app=bcs&stream=channel0_sub.bcs&user=admin&password={FRIGATE_C1_PASS}
+        - path: http://10.10.8.11/flv?port=1935&app=bcs&stream=channel0_main.bcs&user=admin&password={FRIGATE_C1_PASS}
           input_args: preset-http-reolink
           roles:
             - detect
@@ -54,7 +76,7 @@ cameras:
           input_args: preset-http-reolink
           roles:
             - record
-        - path: http://10.10.8.12/flv?port=1935&app=bcs&stream=channel0_sub.bcs&user=admin&password={FRIGATE_C2_PASS}
+        - path: http://10.10.8.12/flv?port=1935&app=bcs&stream=channel0_main.bcs&user=admin&password={FRIGATE_C2_PASS}
           input_args: preset-http-reolink
           roles:
             - detect
@@ -68,7 +90,7 @@ cameras:
           input_args: preset-http-reolink
           roles:
             - record
-        - path: http://10.10.8.13/flv?port=1935&app=bcs&stream=channel0_sub.bcs&user=admin&password={FRIGATE_C3_PASS}
+        - path: http://10.10.8.13/flv?port=1935&app=bcs&stream=channel0_main.bcs&user=admin&password={FRIGATE_C3_PASS}
           input_args: preset-http-reolink
           roles:
             - detect
@@ -82,9 +104,19 @@ cameras:
           input_args: preset-http-reolink
           roles:
             - record
-        - path: http://10.10.8.14/flv?port=1935&app=bcs&stream=channel0_sub.bcs&user=admin&password={FRIGATE_C4_PASS}
+        - path: http://10.10.8.14/flv?port=1935&app=bcs&stream=channel0_main.bcs&user=admin&password={FRIGATE_C4_PASS}
           input_args: preset-http-reolink
           roles:
             - detect
       output_args:
         record: preset-record-generic-audio-copy
+
+camera_groups:
+  Cameras:
+    order: 1
+    icon: LuAirplay
+    cameras:
+      - c1-side
+      - c2-garden
+      - c3-garage
+      - c4-front

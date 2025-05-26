@@ -5,7 +5,7 @@ LogFileSize=0
 PluginSocket=/run/zabbix/agent.plugin.sock
 ControlSocket=/run/zabbix/agent.sock
 {% if ansible_hostname == "parents-server" %}
-Server=127.0.0.1,172.16.0.0/12
+Server=127.0.0.1,172.16.0.0/12,10.10.3.0/24
 {% else %}
 Server=zabbix.greenappleton.com,10.10.3.0/24
 {% endif %}
@@ -30,4 +30,4 @@ UserParameter=speedtest.upload,grep Upload /tmp/speedtest.log | cut -d" " -f11
 UserParameter=pve.temperature,sensors | grep 'Package id 0' | awk '{print $4}' | cut -d '+' -f2 | cut -d '.' -f1
 
 # Pi-Hole
-UserParameter=pihole.version,pihole version | grep Pi-hole | awk '{print $4}'
+UserParameter=pihole.version,pihole version | grep "Core version is" | cut -d"v" -f3 | cut -d" " -f1

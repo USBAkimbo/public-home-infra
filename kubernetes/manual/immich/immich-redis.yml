@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: immich-redis
+  labels:
+    app: immich-redis
+spec:
+  selector:
+    matchLabels:
+      app: immich-redis
+  replicas: 1
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: immich-redis
+    spec:
+      nodeSelector:
+        immich: allowed
+      restartPolicy: Always
+      dnsConfig:
+        options:
+          - name: ndots
+            value: "1"
+      containers:
+        - name: immich-redis
+          image: redis:6.2
+          resources:
+            requests:
+              cpu: 100m
+              memory: 100M
+            limits:
+              memory: 500M
+
+          ports:
+            - containerPort: 6379
+              name: immich-redis
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: immich-redis
+  labels:
+    app: immich-redis
+spec:
+  type: ClusterIP
+  ports:
+    - name: immich-redis
+      port: 6379
+      targetPort: 6379
+  selector:
+    app: immich-redis

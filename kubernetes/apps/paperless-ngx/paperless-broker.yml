@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ppngx-broker
+  labels:
+    app: ppngx-broker
+spec:
+  selector:
+    matchLabels:
+      app: ppngx-broker
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: ppngx-broker
+    spec:
+      volumes:
+      - name: broker-data
+        persistentVolumeClaim:
+          claimName: broker-data
+
+      restartPolicy: Always
+      dnsConfig:
+        options:
+        - name: ndots
+          value: "1"
+      containers:
+      - name: broker
+        image: docker.io/library/redis:7
+        resources:
+          requests:
+            cpu: 100m
+            memory: 200m
+
+        ports:
+          - containerPort: 6379
+            name: ppngx-broker
+        
+        volumeMounts:
+        - mountPath: /data
+          name: broker-data
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: ppngx-broker
+  labels:
+    app: ppngx-broker
+spec:
+  type: ClusterIP
+  ports:
+  - name: ppngx-broker
+    port: 6379
+    targetPort: 6379
+  selector:
+    app: ppngx-broker

@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ppngx-ingress
+  annotations:
+    cert-manager.io/cluster-issuer: cloudflare-issuer
+
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: paperless.greenappleton.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: ppngx-web
+            port:
+              name: ppngx-web
+  tls:
+  - hosts:
+    - paperless.greenappleton.com
+    secretName: paperless.greenappleton.com

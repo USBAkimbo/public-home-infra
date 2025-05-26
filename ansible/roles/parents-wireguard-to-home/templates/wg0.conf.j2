@@ -1,0 +1,12 @@
+[Interface]
+Address = 10.10.10.5/32
+PrivateKey = {{ WG_PRIV_KEY }}
+# PublicKey = xSwo5MGdo9BQUm3UNXzugVy+JNK72DshJlaEoY6WHCU=
+
+[Peer]
+# Home OPNsense
+PublicKey = o8ilSReQB5KzNyTEXwG3vlqaIFJlv85lmxTuje9UqDQ=
+AllowedIPs = 10.10.0.0/19
+PresharedKey = {{ WG_PRE_SHARED_KEY }}
+PersistentKeepalive = 25
+Endpoint = greenappleton.com:51820

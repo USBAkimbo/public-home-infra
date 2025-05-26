@@ -1,0 +1,6 @@
+- name: Get UPS status every minute
+  ansible.builtin.cron:
+    name: ups-status
+    cron_file: ups-status
+    user: root
+    job: upsc ups > /mnt/ssd/ups-status/ups-status.log

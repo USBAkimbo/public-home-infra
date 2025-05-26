@@ -11,6 +11,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 defaults:
   run:
     shell: bash
@@ -30,7 +34,7 @@ jobs:
           export ANSIBLE_FORCE_COLOR=1
           export ANSIBLE_HOST_KEY_CHECKING=False
           ansible-playbook -i hosts --vault-password-file vault-pass actions-playbooks/ansible-dns.yml
-      
+
       - name: Cleanup
         if: always()
         run: |

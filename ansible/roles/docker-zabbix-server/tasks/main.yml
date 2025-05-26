@@ -2,8 +2,7 @@
   file:
     path: "{{ item }}"
     state: directory
-    mode: '0770'
-    recurse: true
+    mode: "0770"
   loop:
     - /opt/dockervolumes/zabbix
     - /opt/dockervolumes/zabbix/zabbix-db

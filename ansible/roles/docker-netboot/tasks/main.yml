@@ -1,25 +1,23 @@
 - name: Create Netboot directories
-  file:
+  ansible.builtin.file:
     path: "{{ item }}"
     state: directory
-    mode: 0775
-    recurse: true
+    mode: "775"
   loop:
     - /opt/dockervolumes/netboot/config
     - /opt/dockervolumes/netboot/assets
 
 - name: Set permissions for Netboot
-  file:
+  ansible.builtin.file:
     path: /opt
     state: directory
-    mode: 0775
-    recurse: true
+    mode: "775"
 
 - name: Copy over docker-compose.yml
-  template:
+  ansible.builtin.template:
     src: docker-compose.yml.j2
     dest: /opt/dockervolumes/netboot/docker-compose.yml
-    mode: 0770
+    mode: "770"
 
 - name: Create proxy network
   community.docker.docker_network:

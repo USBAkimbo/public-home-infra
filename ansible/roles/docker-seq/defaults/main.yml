@@ -1,0 +1,4 @@
+DOCKER_VOLUMES_ROOT: /opt/dockervolumes
+SEQ_ADMIN_PASSWORD: Set in playbook
+SEQ_DOMAIN: seq.greenappleton.com
+SEQ_SYSLOG_API_KEY: Set in playbook

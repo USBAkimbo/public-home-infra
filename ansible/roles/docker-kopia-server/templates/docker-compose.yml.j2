@@ -1,0 +1,70 @@
+services:
+  kopia-local:
+    image: kopia/kopia:0.20.0
+    hostname: kopia-local
+    container_name: kopia-local
+    restart: always
+    environment:
+      KOPIA_PASSWORD: {{ KOPIA_LOCAL_REPO_PASSWORD }}
+      TZ: "UTC"
+      USER: "admin"
+    volumes:
+      - /mnt/hdd/kopia-local/repo:/repo
+      - /mnt/hdd/kopia-local/cache:/app/cache
+      - /mnt/hdd/kopia-local/config:/app/config
+      - /mnt/hdd/kopia-local/logs:/app/logs
+      - /mnt/ssd:/mnt/ssd:ro
+    command:
+      - server
+      - start
+      - --disable-csrf-token-checks
+      - --insecure
+      - --address=0.0.0.0:51515
+      - --server-username=admin
+      - --server-password={{ KOPIA_LOCAL_WEB_PASSWORD }}
+    networks:
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.kopia-local.rule=Host(`{{ KOPIA_LOCAL_FQDN }}`)"
+      - "traefik.http.routers.kopia-local.entrypoints=websecure"
+      - "traefik.http.routers.kopia-local.tls.certresolver=cloudflare"
+      - "traefik.http.services.kopia-local.loadbalancer.server.port=51515"
+
+  kopia-b2:
+    image: kopia/kopia:0.20.0
+    hostname: kopia-b2
+    container_name: kopia-b2
+    restart: always
+    environment:
+      KOPIA_PASSWORD: {{ KOPIA_B2_REPO_PASSWORD }}
+      TZ: "UTC"
+      USER: "admin"
+    volumes:
+      # Source data to backup - add more volumes as needed
+      - /mnt/hdd/kopia-b2/cache:/app/cache
+      - /mnt/hdd/kopia-b2/config:/app/config
+      - /mnt/hdd/kopia-b2/logs:/app/logs
+      - /mnt/ssd:/mnt/ssd:ro
+    command:
+      - server
+      - start
+      - --disable-csrf-token-checks
+      - --insecure
+      - --address=0.0.0.0:51515
+      - --server-username=admin
+      - --server-password={{ KOPIA_B2_WEB_PASSWORD }}
+    networks:
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.kopia-b2.rule=Host(`{{ KOPIA_B2_FQDN }}`)"
+      - "traefik.http.routers.kopia-b2.entrypoints=websecure"
+      - "traefik.http.routers.kopia-b2.tls.certresolver=cloudflare"
+      - "traefik.http.services.kopia-b2.loadbalancer.server.port=51515"
+
+networks:
+  proxy:
+    external: true
