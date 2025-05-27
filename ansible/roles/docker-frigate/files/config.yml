@@ -33,12 +33,7 @@ objects:
     - cat
     - dog
 
-# Coral AI USB accelerator for object detection
-detectors:
-  coral:
-    type: edgetpu
-    device: usb
-
+# Unused - using Coral instead
 ##### Start of OpenVino config for CPU detection #####
 
 #detectors:
@@ -54,62 +49,72 @@ detectors:
 
 ##### End of OpenVino config for CPU detection #####
 
+# Coral AI USB accelerator for object detection
+detectors:
+  coral:
+    type: edgetpu
+    device: usb
+
+# Go2rtc config
+go2rtc:
+  streams:
+    c1-side:
+      - ffmpeg:http://10.10.8.11/flv?port=1935&app=bcs&stream=channel0_main.bcs&user=admin&password={FRIGATE_C1_PASS}#video=copy#audio=copy#audio=opus
+    c2-garden:
+      - ffmpeg:http://10.10.8.12/flv?port=1935&app=bcs&stream=channel0_main.bcs&user=admin&password={FRIGATE_C2_PASS}#video=copy#audio=copy#audio=opus
+    c3-garage:
+      - ffmpeg:http://10.10.8.13/flv?port=1935&app=bcs&stream=channel0_main.bcs&user=admin&password={FRIGATE_C3_PASS}#video=copy#audio=copy#audio=opus
+    c4-front:
+      - ffmpeg:http://10.10.8.14/flv?port=1935&app=bcs&stream=channel0_main.bcs&user=admin&password={FRIGATE_C4_PASS}#video=copy#audio=copy#audio=opus
+
 cameras:
   c1-side:
     ffmpeg:
       inputs:
-        - path: http://10.10.8.11/flv?port=1935&app=bcs&stream=channel0_main.bcs&user=admin&password={FRIGATE_C1_PASS}
-          input_args: preset-http-reolink
-          roles:
-            - record
-        - path: http://10.10.8.11/flv?port=1935&app=bcs&stream=channel0_main.bcs&user=admin&password={FRIGATE_C1_PASS}
-          input_args: preset-http-reolink
+        - path: rtsp://127.0.0.1:8554/c1-side
+          input_args: preset-rtsp-restream
           roles:
             - detect
-      output_args:
-        record: preset-record-generic-audio-copy
+            - record
+    objects:
+      filters:
+        car:
+          mask: 0.265,0.446,0.551,0.598,0.419,0.996,0.004,0.987,0.033,0.818
 
   c2-garden:
     ffmpeg:
       inputs:
-        - path: http://10.10.8.12/flv?port=1935&app=bcs&stream=channel0_main.bcs&user=admin&password={FRIGATE_C2_PASS}
-          input_args: preset-http-reolink
-          roles:
-            - record
-        - path: http://10.10.8.12/flv?port=1935&app=bcs&stream=channel0_main.bcs&user=admin&password={FRIGATE_C2_PASS}
-          input_args: preset-http-reolink
+        - path: rtsp://127.0.0.1:8554/c2-garden
+          input_args: preset-rtsp-restream
           roles:
             - detect
-      output_args:
-        record: preset-record-generic-audio-copy
+            - record
 
   c3-garage:
     ffmpeg:
       inputs:
-        - path: http://10.10.8.13/flv?port=1935&app=bcs&stream=channel0_main.bcs&user=admin&password={FRIGATE_C3_PASS}
-          input_args: preset-http-reolink
-          roles:
-            - record
-        - path: http://10.10.8.13/flv?port=1935&app=bcs&stream=channel0_main.bcs&user=admin&password={FRIGATE_C3_PASS}
-          input_args: preset-http-reolink
+        - path: rtsp://127.0.0.1:8554/c3-garage
+          input_args: preset-rtsp-restream
           roles:
             - detect
-      output_args:
-        record: preset-record-generic-audio-copy
+            - record
+    objects:
+      filters:
+        car:
+          mask: 0.427,0.456,0.819,0.431,1,0.665,1,1,0.463,1
 
   c4-front:
     ffmpeg:
       inputs:
-        - path: http://10.10.8.14/flv?port=1935&app=bcs&stream=channel0_main.bcs&user=admin&password={FRIGATE_C4_PASS}
-          input_args: preset-http-reolink
-          roles:
-            - record
-        - path: http://10.10.8.14/flv?port=1935&app=bcs&stream=channel0_main.bcs&user=admin&password={FRIGATE_C4_PASS}
-          input_args: preset-http-reolink
+        - path: rtsp://127.0.0.1:8554/c4-front
+          input_args: preset-rtsp-restream
           roles:
             - detect
-      output_args:
-        record: preset-record-generic-audio-copy
+            - record
+    objects:
+      filters:
+        car:
+          mask: 0,0.654,0.175,0.513,0.596,0.989,0.148,0.994
 
 camera_groups:
   Cameras:
