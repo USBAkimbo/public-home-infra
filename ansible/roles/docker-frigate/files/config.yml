@@ -1,5 +1,7 @@
 version: 0.15-1
 
+# https://docs.frigate.video/configuration/
+
 # Disable TLS as we're using a reverse proxy
 tls:
   enabled: false
@@ -59,20 +61,24 @@ detectors:
 go2rtc:
   streams:
     c1-side:
-      - ffmpeg:http://10.10.8.11/flv?port=1935&app=bcs&stream=channel0_main.bcs&user=admin&password={FRIGATE_C1_PASS}#video=copy#audio=copy#audio=opus
+      - ffmpeg:http://10.10.8.11/flv?port=1935&app=bcs&stream=channel0_main.bcs&user=admin&password={FRIGATE_C1_PASS}#video=copy#audio=copy#audio=aac
     c2-garden:
-      - ffmpeg:http://10.10.8.12/flv?port=1935&app=bcs&stream=channel0_main.bcs&user=admin&password={FRIGATE_C2_PASS}#video=copy#audio=copy#audio=opus
+      - ffmpeg:http://10.10.8.12/flv?port=1935&app=bcs&stream=channel0_main.bcs&user=admin&password={FRIGATE_C2_PASS}#video=copy#audio=copy#audio=aac
     c3-garage:
-      - ffmpeg:http://10.10.8.13/flv?port=1935&app=bcs&stream=channel0_main.bcs&user=admin&password={FRIGATE_C3_PASS}#video=copy#audio=copy#audio=opus
+      - ffmpeg:http://10.10.8.13/flv?port=1935&app=bcs&stream=channel0_main.bcs&user=admin&password={FRIGATE_C3_PASS}#video=copy#audio=copy#audio=aac
     c4-front:
-      - ffmpeg:http://10.10.8.14/flv?port=1935&app=bcs&stream=channel0_main.bcs&user=admin&password={FRIGATE_C4_PASS}#video=copy#audio=copy#audio=opus
+      - ffmpeg:http://10.10.8.14/flv?port=1935&app=bcs&stream=channel0_main.bcs&user=admin&password={FRIGATE_C4_PASS}#video=copy#audio=copy#audio=aac
+
+ffmpeg:
+  input_args: preset-rtsp-restream
+  output_args: 
+    record: preset-record-generic-audio-copy
 
 cameras:
   c1-side:
     ffmpeg:
       inputs:
         - path: rtsp://127.0.0.1:8554/c1-side
-          input_args: preset-rtsp-restream
           roles:
             - detect
             - record
@@ -85,7 +91,6 @@ cameras:
     ffmpeg:
       inputs:
         - path: rtsp://127.0.0.1:8554/c2-garden
-          input_args: preset-rtsp-restream
           roles:
             - detect
             - record
@@ -94,7 +99,6 @@ cameras:
     ffmpeg:
       inputs:
         - path: rtsp://127.0.0.1:8554/c3-garage
-          input_args: preset-rtsp-restream
           roles:
             - detect
             - record
@@ -107,7 +111,6 @@ cameras:
     ffmpeg:
       inputs:
         - path: rtsp://127.0.0.1:8554/c4-front
-          input_args: preset-rtsp-restream
           roles:
             - detect
             - record
