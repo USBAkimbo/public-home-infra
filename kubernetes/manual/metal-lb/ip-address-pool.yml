@@ -6,10 +6,9 @@ metadata:
   namespace: metallb-system
 spec:
   addresses:
-  - 10.10.3.10/32
+    - 10.10.3.10/32
 
 ---
-
 apiVersion: metallb.io/v1beta1
 kind: IPAddressPool
 metadata:
@@ -17,7 +16,8 @@ metadata:
   namespace: metallb-system
 spec:
   addresses:
-  - 10.10.3.7/32
-  - 10.10.3.8/32
-  - 10.10.3.9/32
+    - 10.10.3.6/32
+    - 10.10.3.7/32
+    - 10.10.3.8/32
+    - 10.10.3.9/32
   autoAssign: false

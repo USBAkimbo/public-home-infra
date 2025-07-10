@@ -4,11 +4,13 @@
     - roles/get-nas-files-list
     - roles/get-ups-status
     - roles/nas-config-backup
+    - roles/nas-docker-maintenance
     - roles/docker-traefik
     - roles/docker-filebrowser
     - roles/docker-frigate
     - roles/docker-seq
     - roles/docker-immich
+    - roles/docker-unifi
     - roles/docker-arr
     - roles/docker-nas-syncthing
     - roles/docker-nas-zabbix-agent

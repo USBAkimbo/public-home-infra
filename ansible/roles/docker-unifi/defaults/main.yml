@@ -1,0 +1,2 @@
+DOCKER_VOLUMES_ROOT: /opt/dockervolumes
+UNIFI_FQDN: unifi.greenappleton.com

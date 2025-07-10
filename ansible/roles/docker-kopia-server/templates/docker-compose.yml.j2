@@ -1,6 +1,6 @@
 services:
   kopia-local:
-    image: kopia/kopia:0.20.0
+    image: kopia/kopia:0.20.1
     hostname: kopia-local
     container_name: kopia-local
     restart: always
@@ -33,7 +33,7 @@ services:
       - "traefik.http.services.kopia-local.loadbalancer.server.port=51515"
 
   kopia-b2:
-    image: kopia/kopia:0.20.0
+    image: kopia/kopia:0.20.1
     hostname: kopia-b2
     container_name: kopia-b2
     restart: always

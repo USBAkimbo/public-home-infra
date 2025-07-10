@@ -1,14 +1,14 @@
 name: "Build OPNsense backup container"
 
-#on:
-#  workflow_dispatch:
-#  push:
-#    branches: main
-#    paths:
-#      - docker/opnsense-backup/**
-#      - .github/workflows/docker-opnsense-backup.yml
-#  schedule:
-#    - cron: 0 0 1 * * # 1st of every month at 00:00
+on:
+  workflow_dispatch:
+  push:
+    branches: main
+    paths:
+      - docker/opnsense-backup/**
+      - .github/workflows/docker-opnsense-backup.yml
+  schedule:
+    - cron: 0 0 1 * * # 1st of every month at 00:00
 
 jobs:
   docker:

@@ -1,0 +1,71 @@
+# https://docs.linuxserver.io/images/docker-unifi-network-application/
+
+services:
+  unifi-db:
+    image: docker.io/mongo:7.0
+    container_name: unifi-db
+    restart: always
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=root
+      - MONGO_INITDB_ROOT_PASSWORD=unifi
+      - MONGO_USER=unifi
+      - MONGO_PASS=unifi
+      - MONGO_DBNAME=unifi
+      - MONGO_AUTHSOURCE=admin
+    volumes:
+      - {{ DOCKER_VOLUMES_ROOT }}/unifi/db:/data/db
+      - {{ DOCKER_VOLUMES_ROOT }}/unifi/init/init-mongo.sh:/docker-entrypoint-initdb.d/init-mongo.sh:ro
+
+  unifi-network-application:
+    image: lscr.io/linuxserver/unifi-network-application:9.2.87
+    container_name: unifi-network-application
+    restart: always
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+      - MONGO_USER=unifi
+      - MONGO_PASS=unifi
+      - MONGO_HOST=unifi-db
+      - MONGO_PORT=27017
+      - MONGO_DBNAME=unifi
+      - MONGO_AUTHSOURCE=admin
+      - MEM_LIMIT=1024 #optional
+      - MEM_STARTUP=1024 #optional
+    volumes:
+      - {{ DOCKER_VOLUMES_ROOT }}/unifi/config:/config
+    networks:
+      - proxy
+    ports:
+      - 3478:3478/udp      # Unifi STUN port
+      - 10001:10001/udp    # Required for AP discovery
+      - 8080:8080          # Required for device communication
+      - 8443:8443          # Unifi web admin port
+      # - 1900:1900/udp    # Required for Make controller discoverable on L2 network option
+      # - 8880:8880        # Unifi guest portal HTTP redirect port
+      # - 8843:8843        # Unifi guest portal HTTPS redirect port
+      # - 6789:6789        # For mobile throughput test
+      # - 5514:5514/udp    # Remote syslog port
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.unifi.rule=Host(`{{ UNIFI_FQDN }}`)"
+      - "traefik.http.routers.unifi.entrypoints=web"
+      - "traefik.http.routers.unifi.tls.certresolver=cloudflare"
+      - "traefik.http.services.unifi.loadbalancer.server.scheme=https"
+      - "traefik.http.services.unifi.loadbalancer.server.port=8443"
+      # header mingling, Ref: https://www.smarthomebeginner.com/install-unifi-controller-on-docker
+      #- "traefik.http.middlewares.unifi.headers.sslredirect=true"
+      #- "traefik.http.middlewares.unifi.headers.stsSeconds=315360000"
+      #- "traefik.http.middlewares.unifi.headers.browserXSSFilter=true"
+      #- "traefik.http.middlewares.unifi.headers.contentTypeNosniff=true"
+      #- "traefik.http.middlewares.unifi.headers.forceSTSHeader=true"
+      #- "traefik.http.middlewares.unifi.headers.STSIncludeSubdomains=true"
+      #- "traefik.http.middlewares.unifi.headers.STSPreload=true"
+      #- "traefik.http.middlewares.unifi.headers.frameDeny=true"
+      #- "traefik.http.middlewares.unifi.headers.accessControlAllowCredentials=true"
+      #- "traefik.http.middlewares.unifi.headers.SSLHost={{ UNIFI_FQDN }}"
+
+networks:
+  proxy:
+    external: true

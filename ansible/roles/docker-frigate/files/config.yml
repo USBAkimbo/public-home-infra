@@ -57,20 +57,21 @@ detectors:
     type: edgetpu
     device: usb
 
+# Disabled because streams crash
 # Go2rtc config
-go2rtc:
-  streams:
-    c1-side:
-      - ffmpeg:http://10.10.8.11/flv?port=1935&app=bcs&stream=channel0_main.bcs&user=admin&password={FRIGATE_C1_PASS}#video=copy#audio=copy#audio=aac
-    c2-garden:
-      - ffmpeg:http://10.10.8.12/flv?port=1935&app=bcs&stream=channel0_main.bcs&user=admin&password={FRIGATE_C2_PASS}#video=copy#audio=copy#audio=aac
-    c3-garage:
-      - ffmpeg:http://10.10.8.13/flv?port=1935&app=bcs&stream=channel0_main.bcs&user=admin&password={FRIGATE_C3_PASS}#video=copy#audio=copy#audio=aac
-    c4-front:
-      - ffmpeg:http://10.10.8.14/flv?port=1935&app=bcs&stream=channel0_main.bcs&user=admin&password={FRIGATE_C4_PASS}#video=copy#audio=copy#audio=aac
+#go2rtc:
+#  streams:
+#    c1-side:
+#      - ffmpeg:http://10.10.8.11/flv?port=1935&app=bcs&stream=channel0_main.bcs&user=admin&password={FRIGATE_C1_PASS}#video=copy#audio=copy#audio=aac
+#    c2-garden:
+#      - ffmpeg:http://10.10.8.12/flv?port=1935&app=bcs&stream=channel0_main.bcs&user=admin&password={FRIGATE_C2_PASS}#video=copy#audio=copy#audio=aac
+#    c3-garage:
+#      - ffmpeg:http://10.10.8.13/flv?port=1935&app=bcs&stream=channel0_main.bcs&user=admin&password={FRIGATE_C3_PASS}#video=copy#audio=copy#audio=aac
+#    c4-front:
+#      - ffmpeg:http://10.10.8.14/flv?port=1935&app=bcs&stream=channel0_main.bcs&user=admin&password={FRIGATE_C4_PASS}#video=copy#audio=copy#audio=aac
 
 ffmpeg:
-  input_args: preset-rtsp-restream
+  input_args: preset-http-reolink
   output_args: 
     record: preset-record-generic-audio-copy
 
@@ -78,7 +79,7 @@ cameras:
   c1-side:
     ffmpeg:
       inputs:
-        - path: rtsp://127.0.0.1:8554/c1-side
+        - path: http://10.10.8.11/flv?port=1935&app=bcs&stream=channel0_main.bcs&user=admin&password={FRIGATE_C1_PASS}
           roles:
             - detect
             - record
@@ -90,7 +91,7 @@ cameras:
   c2-garden:
     ffmpeg:
       inputs:
-        - path: rtsp://127.0.0.1:8554/c2-garden
+        - path: http://10.10.8.12/flv?port=1935&app=bcs&stream=channel0_main.bcs&user=admin&password={FRIGATE_C2_PASS}
           roles:
             - detect
             - record
@@ -98,7 +99,7 @@ cameras:
   c3-garage:
     ffmpeg:
       inputs:
-        - path: rtsp://127.0.0.1:8554/c3-garage
+        - path: http://10.10.8.13/flv?port=1935&app=bcs&stream=channel0_main.bcs&user=admin&password={FRIGATE_C3_PASS}
           roles:
             - detect
             - record
@@ -110,7 +111,7 @@ cameras:
   c4-front:
     ffmpeg:
       inputs:
-        - path: rtsp://127.0.0.1:8554/c4-front
+        - path: http://10.10.8.14/flv?port=1935&app=bcs&stream=channel0_main.bcs&user=admin&password={FRIGATE_C4_PASS}
           roles:
             - detect
             - record

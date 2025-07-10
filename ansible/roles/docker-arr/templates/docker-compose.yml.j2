@@ -94,13 +94,13 @@ services:
       - {{ DOCKER_VOLUMES_ROOT }}/jellyfin:/config
       - {{ TV_FOLDER_PATH }}:/data/tvshows
       - {{ MOVIES_FOLDER_PATH }}:/data/movies
-      - {{ DOWNLOADS_FOLDER_PATH }}:/transcodes
+      - {{ DOWNLOADS_FOLDER_PATH }}/jellyfin-transcodes:/transcodes
     devices:
       - /dev/dri:/dev/dri # AMD onboard GPU
 
   sonarr:
     container_name: sonarr
-    image: lscr.io/linuxserver/sonarr:4.0.14
+    image: lscr.io/linuxserver/sonarr:4.0.15
     restart: always
     network_mode: service:gluetun
     environment:
@@ -114,7 +114,7 @@ services:
 
   radarr:
     container_name: radarr
-    image: lscr.io/linuxserver/radarr:5.23.3
+    image: lscr.io/linuxserver/radarr:5.26.2
     restart: always
     network_mode: service:gluetun
     environment:
@@ -128,7 +128,7 @@ services:
 
   prowlarr:
     container_name: prowlarr
-    image: lscr.io/linuxserver/prowlarr:1.35.1
+    image: lscr.io/linuxserver/prowlarr:1.37.0
     restart: always
     network_mode: service:gluetun
     environment:
@@ -155,7 +155,7 @@ services:
 
   sabnzbd:
     container_name: sabnzbd
-    image: lscr.io/linuxserver/sabnzbd:4.5.1
+    image: lscr.io/linuxserver/sabnzbd:4.5.2
     restart: always
     network_mode: service:gluetun
     environment:

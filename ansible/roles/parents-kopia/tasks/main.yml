@@ -4,7 +4,7 @@
 
 - name: Set Kopia retention policy
   ansible.builtin.command:
-    cmd: kopia policy set --global --keep-daily 30 --keep-weekly 52 --keep-monthly 24 --keep-annual 3 --keep-latest 0
+    cmd: kopia policy set --global --keep-daily 30 --keep-weekly 52 --keep-monthly 0 --keep-annual 0 --keep-latest 0
 
 - name: Create cron job to backup /opt daily at 08:00
   ansible.builtin.cron:

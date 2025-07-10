@@ -32,6 +32,10 @@
   ansible.builtin.reboot:
   when: reboot_required_file.stat.exists or (reboot_required_kernel.stdout | int) != 1
 
-- name: Sleep for 1 hour
+- name: Ensure LXC containers are running
+  ansible.builtin.shell:
+    cmd: for i in $(lxc-ls); do lxc-start $i; done
+
+- name: Sleep for 10 mins
   ansible.builtin.pause:
-    minutes: 60
+    minutes: 10

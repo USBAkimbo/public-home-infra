@@ -1,0 +1,86 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backup-script-configmap
+data:
+  backup.sh: |
+    #!/bin/bash
+
+    # Define vars
+    DT=$(date "+%Y-%m-%d--%H-%M")
+    BACKUP_FILE="/backups/zabbix-mariadb-backup-$DT.sql.gz"
+    LOG_FILE="/backups/last-exit-code.log"
+
+    echo "Starting DB backup at $DT"
+    mariadb-dump -h zabbix-db \
+      -uzabbix \
+      -pzabbix \
+      --single-transaction \
+      --quick \
+      --all-databases \
+      | gzip > "$BACKUP_FILE"
+
+    if [ $? -ne 0 ]; then
+        echo "Error: DB backup or compression failed!"
+        echo 1 > "$LOG_FILE"
+        exit 1
+    fi
+
+    echo "Backup and compression complete: $BACKUP_FILE"
+
+    echo "Deleting backups older than 3 days"
+    find /backups -mtime +3 -name "*.gz" -delete
+
+    echo "Correcting permissions"
+    cd /backups
+    chmod -R 750 *
+    chown 1000:1000 -R *
+
+    echo "Backup process finished at $(date "+%Y-%m-%d--%H-%M")"
+    echo 0 > "$LOG_FILE"
+    exit 0
+
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: mariadb-backup-cronjob
+spec:
+  schedule: "0 4 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          #  nodeSelector:
+          #    zabbixdb: allowed
+          volumes:
+            - name: backups
+              nfs:
+                path: /mnt/ssd/k8s/zabbix/zabbix-db/backups
+                server: 10.10.3.2
+            - name: scripts
+              configMap:
+                name: backup-script-configmap
+
+          containers:
+            - name: mariadb-backup
+              image: mariadb:11.5
+              resources:
+                requests:
+                  cpu: "0.1"
+                  memory: 1G
+                limits:
+                  cpu: "1"
+                  memory: 1G
+              securityContext:
+                runAsUser: 1000
+              command:
+                - "/bin/bash"
+                - "/scripts/backup.sh"
+              volumeMounts:
+                - name: backups
+                  mountPath: /backups
+                - name: scripts
+                  mountPath: /scripts
+
+          restartPolicy: OnFailure

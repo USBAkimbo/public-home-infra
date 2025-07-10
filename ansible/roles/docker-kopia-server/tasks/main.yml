@@ -24,58 +24,69 @@
     container: kopia-local
     command: kopia policy set --global --compression=zstd --keep-hourly=48 --keep-daily=30 --keep-weekly=52 --keep-monthly=24 --keep-annual=3 --keep-latest=0
 
-- name: Set local repo folders to snapshot
+# Enable this step once for the initial snapshot
+#- name: Set local repo folders to snapshot
+#  community.docker.docker_container_exec:
+#    container: kopia-local
+#    command: kopia snapshot create {{ item }}
+#  loop:
+#    - /mnt/ssd/docker/bazarr
+#    - /mnt/ssd/docker/filebrowser
+#    - /mnt/ssd/docker/frigate
+#    - /mnt/ssd/docker/immich/import
+#    - /mnt/ssd/docker/jellyfin
+#    - /mnt/ssd/docker/prowlarr
+#    - /mnt/ssd/docker/radarr
+#    - /mnt/ssd/docker/sabnzbd
+#    - /mnt/ssd/docker/sonarr
+#    - /mnt/ssd/docker/syncthing
+#    - /mnt/ssd/docker/transmission
+#    - /mnt/ssd/docker/zabbix/db/backups
+#    - /mnt/ssd/docs
+#    - /mnt/ssd/keepass
+#    - /mnt/ssd/media-files-list
+#    - /mnt/ssd/music
+#    - /mnt/ssd/opnsense-backups
+
+- name: Check Kopia repository status
   community.docker.docker_container_exec:
-    container: kopia-local
-    command: kopia snapshot create {{ item }}
-  loop:
-    - /mnt/ssd/docker/bazarr
-    - /mnt/ssd/docker/filebrowser
-    - /mnt/ssd/docker/frigate
-    - /mnt/ssd/docker/immich/import
-    - /mnt/ssd/docker/jellyfin
-    - /mnt/ssd/docker/prowlarr
-    - /mnt/ssd/docker/radarr
-    - /mnt/ssd/docker/sabnzbd
-    - /mnt/ssd/docker/sonarr
-    - /mnt/ssd/docker/syncthing
-    - /mnt/ssd/docker/transmission
-    - /mnt/ssd/docker/zabbix/db/backups
-    - /mnt/ssd/docs
-    - /mnt/ssd/keepass
-    - /mnt/ssd/media-files-list
-    - /mnt/ssd/music
-    - /mnt/ssd/opnsense-backups
+    container: kopia-b2
+    command: kopia repo status
+  register: kopia_repo_status_result
+  ignore_errors: true # We expect an error if no repo is connected
 
 - name: Ensure B2 repo is connected
   community.docker.docker_container_exec:
     container: kopia-b2
     command: kopia repo connect b2 --bucket {{ KOPIA_B2_BUCKET_NAME }} --key-id {{ KOPIA_B2_KEY_ID }} --key {{ KOPIA_B2_KEY_SECRET }} --password {{ KOPIA_B2_REPO_PASSWORD }}
+  when: kopia_repo_status_result.rc != 0 or "no repository is connected" in kopia_repo_status_result.stderr | default('')
 
 - name: Set B2 repo policy
   community.docker.docker_container_exec:
     container: kopia-b2
     command: kopia policy set --global --compression=zstd --keep-hourly=48 --keep-daily=30 --keep-weekly=52 --keep-monthly=24 --keep-annual=3 --keep-latest=0
+  when: kopia_repo_status_result.rc != 0 or "no repository is connected" in kopia_repo_status_result.stderr | default('')
 
-- name: Set B2 folders to snapshot
-  community.docker.docker_container_exec:
-    container: kopia-b2
-    command: kopia snapshot create {{ item }}
-  loop:
-    - /mnt/ssd/docker/bazarr
-    - /mnt/ssd/docker/filebrowser
-    - /mnt/ssd/docker/frigate
-    - /mnt/ssd/docker/immich/import
-    - /mnt/ssd/docker/jellyfin
-    - /mnt/ssd/docker/prowlarr
-    - /mnt/ssd/docker/radarr
-    - /mnt/ssd/docker/sabnzbd
-    - /mnt/ssd/docker/sonarr
-    - /mnt/ssd/docker/syncthing
-    - /mnt/ssd/docker/transmission
-    - /mnt/ssd/docker/zabbix/db/backups
-    - /mnt/ssd/docs
-    - /mnt/ssd/keepass
-    - /mnt/ssd/media-files-list
-    - /mnt/ssd/music
-    - /mnt/ssd/opnsense-backups
+# Enable this step once for the initial snapshot
+#- name: Set B2 folders to snapshot
+#  community.docker.docker_container_exec:
+#    container: kopia-b2
+#    command: kopia snapshot create {{ item }}
+#  loop:
+#    - /mnt/ssd/docker/bazarr
+#    - /mnt/ssd/docker/filebrowser
+#    - /mnt/ssd/docker/frigate
+#    - /mnt/ssd/docker/immich/import
+#    - /mnt/ssd/docker/jellyfin
+#    - /mnt/ssd/docker/prowlarr
+#    - /mnt/ssd/docker/radarr
+#    - /mnt/ssd/docker/sabnzbd
+#    - /mnt/ssd/docker/sonarr
+#    - /mnt/ssd/docker/syncthing
+#    - /mnt/ssd/docker/transmission
+#    - /mnt/ssd/docker/zabbix/db/backups
+#    - /mnt/ssd/docs
+#    - /mnt/ssd/keepass
+#    - /mnt/ssd/media-files-list
+#    - /mnt/ssd/music
+#    - /mnt/ssd/opnsense-backups

@@ -2,5 +2,8 @@
   "extends": ["config:base"],
   "kubernetes": {
     "fileMatch": ["kubernetes/apps/.+/.+\\.ya?ml$"]
+  },
+  "docker-compose": {
+    "fileMatch": ["(^|/)docker-compose[^/]*\\.ya?ml\\.j2$"]
   }
 }

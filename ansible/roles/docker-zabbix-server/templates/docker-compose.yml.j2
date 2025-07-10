@@ -8,6 +8,10 @@ services:
     container_name: zabbix-db
     image: mariadb:{{ MARIA_DB_VERSION }}
     restart: always
+    deploy:
+      resources:
+        limits:
+          memory: "4G"
     volumes:
       - {{ ZABBIX_DATA_PATH }}/zabbix-db/mariadb:/var/lib/mysql:rw
       - {{ ZABBIX_DATA_PATH }}/zabbix-db/backups:/backups

@@ -2,30 +2,32 @@
   ansible.builtin.file:
     path: "{{ item }}"
     state: directory
-    mode: "770"
+    mode: "700"
+    owner: "70" # postgresql user needs to own this
+    recurse: true
   loop:
-    - "{{ ZABBIX_PGSQL_DATA_PATH }}/data"
-    - "{{ ZABBIX_PGSQL_DATA_PATH }}/backups"
+    - "{{ ZABBIX_PGSQL_DB_PATH }}/data"
+    - "{{ ZABBIX_PGSQL_DB_PATH }}/backups"
 
 - name: Copy over docker-compose.yml
   ansible.builtin.template:
     src: docker-compose.yml.j2
-    dest: "{{ ZABBIX_PGSQL_DATA_PATH }}/backups/docker-compose.yml"
+    dest: "{{ ZABBIX_PGSQL_DB_PATH }}/backups/docker-compose.yml"
 
 - name: Start compose stack
   community.docker.docker_compose_v2:
-    project_src: "{{ ZABBIX_PGSQL_DATA_PATH }}/backups"
+    project_src: "{{ ZABBIX_PGSQL_DB_PATH }}/backups"
     project_name: zabbix-db
 
 - name: Cleanup compose stack
   ansible.builtin.file:
-    path: "{{ ZABBIX_PGSQL_DATA_PATH }}/backups/docker-compose.yml"
+    path: "{{ ZABBIX_PGSQL_DB_PATH }}/backups/docker-compose.yml"
     state: absent
 
 - name: Copy over backup script
   ansible.builtin.template:
     src: db-backup.sh.j2
-    dest: "{{ ZABBIX_PGSQL_DATA_PATH }}/backups/db-backup.sh"
+    dest: "{{ ZABBIX_PGSQL_DB_PATH }}/backups/db-backup.sh"
 
 - name: Create backup cron job daily at 04:00
   ansible.builtin.cron:
@@ -34,4 +36,4 @@
     minute: "0"
     hour: "4"
     user: root
-    job: "{{ ZABBIX_PGSQL_DATA_PATH }}/backups/db-backup.sh"
+    job: "{{ ZABBIX_PGSQL_DB_PATH }}/backups/db-backup.sh"

@@ -24,7 +24,7 @@ spec:
       hostPID: true
       containers:
         - name: zabbix-agent
-          image: zabbix/zabbix-agent2:alpine-7.0.13
+          image: zabbix/zabbix-agent2:alpine-7.0.16
           imagePullPolicy: IfNotPresent
           resources:
             requests:

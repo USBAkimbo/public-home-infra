@@ -2,8 +2,10 @@
   ansible.builtin.file:
     path: "{{ item }}"
     state: directory
-    mode: "700"
+    mode: "770"
+    group: "1000"
   loop:
+    - "{{ TRUENAS_BACKUP_PATH }}"
     - "{{ TRUENAS_BACKUP_PATH }}/backups"
     - "{{ TRUENAS_BACKUP_PATH }}/script"
 
@@ -12,6 +14,7 @@
     src: backup-script.sh.j2
     dest: "{{ TRUENAS_BACKUP_PATH }}/script/truenas-backup.sh"
     mode: "700"
+    group: "1000"
 
 - name: Create backup every day at 00:00
   ansible.builtin.cron:

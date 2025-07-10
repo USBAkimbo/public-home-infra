@@ -1,26 +1,16 @@
 - name: Create Filebrowser directory
   ansible.builtin.file:
-    path: "{{ item }}"
+    path: "{{ DOCKER_VOLUMES_ROOT }}/filebrowser/config"
     state: directory
     mode: "770"
-  loop:
-    - "{{ DOCKER_VOLUMES_ROOT }}/filebrowser"
-    - "{{ DOCKER_VOLUMES_ROOT }}/filebrowser/db"
+    owner: "{{ FILEBROWSER_UID }}"
 
-- name: Check if Filebrowser DB exists
-  ansible.builtin.stat:
-    path: "{{ DOCKER_VOLUMES_ROOT }}/filebrowser/db/filebrowser.db"
-  register: filebrowser_db
-
-- name: Create Filebrowser DB if it's missing
-  ansible.builtin.file:
-    path: "{{ DOCKER_VOLUMES_ROOT }}/filebrowser/db/filebrowser.db"
-    state: touch
-  when: not filebrowser_db.stat.exists
-
-- name: Create Traefik proxy network
-  community.docker.docker_network:
-    name: proxy
+- name: Copy over Filebrowser config
+  ansible.builtin.template:
+    src: config.yaml.j2
+    dest: "{{ DOCKER_VOLUMES_ROOT }}/filebrowser/config/config.yaml"
+    mode: "770"
+    owner: "{{ FILEBROWSER_UID }}"
 
 - name: Copy over docker-compose.yml
   ansible.builtin.template:

@@ -1,11 +1,15 @@
+# https://github.com/gtsteffaniak/filebrowser/wiki/Getting-Started
+
 services:
   filebrowser:
     container_name: filebrowser
-    image: filebrowser/filebrowser
+    image: gtstef/filebrowser:0.7.12-beta
     restart: always
     user: "{{ FILEBROWSER_UID }}"
+    environment:
+      FILEBROWSER_CONFIG: "data/config.yaml"
     volumes:
-      - {{ DOCKER_VOLUMES_ROOT }}/filebrowser/db/filebrowser.db:/database.db
+      - {{ DOCKER_VOLUMES_ROOT }}/filebrowser/config:/home/filebrowser/data
       - {{ FILEBROWSER_SHARE_ROOT }}:/srv
     networks:
       - proxy

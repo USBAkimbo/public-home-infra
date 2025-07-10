@@ -39,7 +39,7 @@ spec:
           value: "1"
       containers:
       - name: ppngx-web
-        image: ghcr.io/paperless-ngx/paperless-ngx:2.16.2
+        image: ghcr.io/paperless-ngx/paperless-ngx:2.17.1
         resources:
           requests:
             cpu: 100m

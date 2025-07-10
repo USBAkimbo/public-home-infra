@@ -33,7 +33,7 @@ spec:
             value: "1"
       containers:
         - name: zabbix-server-1
-          image: zabbix/zabbix-server-mysql:ubuntu-7.0.13
+          image: zabbix/zabbix-server-pgsql:ubuntu-7.0.16
           resources:
             requests:
               cpu: 100m
@@ -41,12 +41,12 @@ spec:
             limits:
               memory: 2G
           env:
-            - name: MYSQL_USER
+            - name: PGSQL_USER
               value: zabbix
-            - name: MYSQL_PASSWORD
+            - name: PGSQL_PASSWORD
               value: zabbix
             - name: DB_SERVER_HOST
-              value: zabbix-db
+              value: "10.10.3.2"
             - name: ZBX_STARTPINGERS
               value: "4"
             - name: ZBX_CACHESIZE
@@ -109,7 +109,7 @@ spec:
             value: "1"
       containers:
         - name: zabbix-server-2
-          image: zabbix/zabbix-server-mysql:ubuntu-7.0.13
+          image: zabbix/zabbix-server-pgsql:ubuntu-7.0.16
           resources:
             requests:
               cpu: 100m
@@ -117,12 +117,12 @@ spec:
             limits:
               memory: 2G
           env:
-            - name: MYSQL_USER
+            - name: PGSQL_USER
               value: zabbix
-            - name: MYSQL_PASSWORD
+            - name: PGSQL_PASSWORD
               value: zabbix
             - name: DB_SERVER_HOST
-              value: zabbix-db
+              value: "10.10.3.2"
             - name: ZBX_STARTPINGERS
               value: "4"
             - name: ZBX_CACHESIZE

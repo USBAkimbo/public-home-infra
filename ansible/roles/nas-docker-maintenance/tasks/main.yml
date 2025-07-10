@@ -1,0 +1,8 @@
+- name: Create daily Docker maintenance cron job daily at 04:00
+  ansible.builtin.cron:
+    name: docker-maintenance
+    cron_file: docker-maintenance
+    minute: 0
+    hour: 6
+    user: root
+    job: docker system prune -af

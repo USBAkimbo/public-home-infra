@@ -57,7 +57,7 @@ spec:
       serviceAccountName: seq-fluent-bit
       containers:
         - name: fluent-bit
-          image: fluent/fluent-bit:4.0.2
+          image: fluent/fluent-bit:4.0.4
           command:
             - /fluent-bit/bin/fluent-bit
           args:

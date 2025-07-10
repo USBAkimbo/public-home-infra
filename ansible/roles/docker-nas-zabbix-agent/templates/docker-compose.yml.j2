@@ -1,14 +1,19 @@
 services:
   zabbix-agent:
-    image: zabbix/zabbix-agent2:alpine-7.0.13
+    image: zabbix/zabbix-agent2:alpine-7.0.16
     container_name: zabbix-agent
     restart: always
     ports:
       - 10050:10050
     volumes:
+      - /dev:/dev:ro
+      - /boot:/boot:ro
+      - /run:/run:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/run:/var/run:ro
       - /mnt/ssd/ups-status:/mnt/ssd/ups-status:ro
       - /mnt/ssd/speedtest:/mnt/ssd/speedtest:ro
-      - /mnt/ssd/k8s/zabbix/zabbix-db/backups:/mnt/ssd/k8s/zabbix/zabbix-db/backups:ro
+      - /mnt/ssd/zabbix-backup-exit-codes:/mnt/ssd/zabbix-backup-exit-codes:ro
       - /mnt/ssd/opnsense-backups/backups:/mnt/ssd/opnsense-backups/backups:ro
     environment:
       - ZBX_PASSIVESERVERS=10.0.0.0/8

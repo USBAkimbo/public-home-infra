@@ -1,10 +1,16 @@
 services:
   pgsql-timescaledb:
     container_name: zabbix-db
-    image: timescale/timescaledb:2.19.3-pg17
+    image: timescale/timescaledb:2.19.3-pg16
     restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: "4"
+          memory: "8GB"
     volumes:
-      - {{ ZABBIX_PGSQL_DATA_PATH }}/data:/home/postgres/pgdata/data
+      - {{ ZABBIX_PGSQL_DB_PATH }}/data:/var/lib/postgresql/data
+      - {{ ZABBIX_PGSQL_DB_PATH }}/backups:/backups
     environment:
       - POSTGRES_PASSWORD={{ ZABBIX_PGSQL_PASSWORD }}
     ports:

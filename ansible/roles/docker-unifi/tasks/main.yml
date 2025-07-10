@@ -1,0 +1,55 @@
+- name: Create unifi directory
+  ansible.builtin.file:
+    path: "{{ DOCKER_VOLUMES_ROOT }}/unifi"
+    state: directory
+    mode: "770"
+    owner: "1000"
+    group: "1000"
+
+- name: Create unifi config directory
+  ansible.builtin.file:
+    path: "{{ DOCKER_VOLUMES_ROOT }}/unifi/config"
+    state: directory
+    mode: "770"
+    owner: "1000"
+    group: "1000"
+
+- name: Create unifi db directory
+  ansible.builtin.file:
+    path: "{{ DOCKER_VOLUMES_ROOT }}/unifi/db"
+    state: directory
+    mode: "770"
+    owner: "999"
+    group: "999"
+
+- name: Create unifi init directory
+  ansible.builtin.file:
+    path: "{{ DOCKER_VOLUMES_ROOT }}/unifi/init"
+    state: directory
+    mode: "770"
+    owner: "999"
+    group: "999"
+
+- name: Copy over init script
+  ansible.builtin.copy:
+    src: init-mongo.sh
+    dest: "{{ DOCKER_VOLUMES_ROOT }}/unifi/init/init-mongo.sh"
+    mode: "770"
+    owner: "999"
+    group: "999"
+
+- name: Copy over compose template
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ DOCKER_VOLUMES_ROOT }}/unifi/docker-compose.yml"
+    mode: "770"
+
+- name: Start compose stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ DOCKER_VOLUMES_ROOT }}/unifi/"
+    project_name: unifi
+
+- name: Cleanup compose file
+  ansible.builtin.file:
+    path: "{{ DOCKER_VOLUMES_ROOT }}/unifi/docker-compose.yml"
+    state: absent

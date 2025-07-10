@@ -3,7 +3,6 @@
 10.10.3.10 home-assistant.greenappleton.com
 10.10.3.10 longhorn.greenappleton.com
 10.10.3.10 paperless.greenappleton.com
-10.10.3.10 unifi.greenappleton.com
 10.10.3.10 zabbix.greenappleton.com
 10.10.3.2 bazarr.greenappleton.com
 10.10.3.2 cctv.greenappleton.com
@@ -21,8 +20,7 @@
 10.10.3.2 sonarr.greenappleton.com
 10.10.3.2 transmission.greenappleton.com
 10.10.3.2 truenas.greenappleton.com
-10.10.3.9 unifi-ap-comms.greenappleton.com
-10.10.3.9 unifi-web.greenappleton.com
+10.10.3.2 unifi.greenappleton.com
 10.10.4.1 ilo.greenappleton.com
 10.10.4.11 p-h-pve-01.greenappleton.com
 10.10.4.12 p-h-pve-02.greenappleton.com

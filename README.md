@@ -1,13 +1,8 @@
 # What is this?
-- This is the public fork of my home infra repo that I've been working on since 2024-04
-- This contains Ansible to configure Ubuntu VMs and primarily Kubernetes using Talos Linux for apps
-- I've also got some self hosted runners, CCTV, lots of Ansible configs, etc
-- This will inevtiably rot over time, so please check the commit history
-- If this hasn't been updated in more than 6 months, you should take everything here with a large grain of salt
-- Also note that Terraform for Proxmox is currently broken because I can't be bothered to update the provider as I don't use it - Talos VMs are too quick and simple to create
-- I heavily use the K8s parts, so you'll find they're up to date and hopefully useful
-- The Ansible parts should provide good inspiration too
-- Enjoy
+- Terraform for Proxmox
+- Ansible to configure Ubuntu VMs
+- Kubernetes using Talos Linux for apps
+- All Linux shell commands assume you are root unless otherwise stated
 
 # GitHub Actions self-hosted runner
 - For this, I followed the GitHub Actions self-hosted runner installer for Linux
@@ -55,13 +50,13 @@ ansible-vault encrypt_string 'your text here'
 # Ansible command to patch Proxmox hosts
 ```
 cd ansible
-ansible-playbook -i hosts --vault-password-file vault-pass actions-playbooks/ansible-proxmox-patches.yml
+ansible-playbook -i hosts --vault-password-file ~/.ansible/vault-pass actions-playbooks/ansible-proxmox-patches.yml
 ```
 
 # Ansible command to configure parents server
 ```
 cd ansible
-ansible-playbook -i hosts --vault-password-file vault-pass actions-playbooks/ansible-parents-server.yml
+ansible-playbook -i hosts --vault-password-file ~/.ansible/vault-pass actions-playbooks/ansible-parents-server.yml
 ```
 
 # Talos Linux on Proxmox for K8s
@@ -117,7 +112,7 @@ sed -i 's/# allowSchedulingOnControlPlanes: true/allowSchedulingOnControlPlanes:
 # Edit the control plane and worker config install section to use the custom iso as per the docs
   install:
     disk: /dev/sda # The disk used for installations.
-    image: factory.talos.dev/installer/a44ca58b65602c48398f2f3eb0b2b03fe5b431e6dfd7b4ee7b8ee3ad53802de7:v1.10.2
+    image: factory.talos.dev/installer/a44ca58b65602c48398f2f3eb0b2b03fe5b431e6dfd7b4ee7b8ee3ad53802de7:v1.10.4
 
 # Once you've updated the worker and controlplane, update them in KeePass
 # Ensure that you backup all files in the _out folder
@@ -173,13 +168,7 @@ p-h-k8s-04   Ready    worker          20m   v1.29.3
 - If not, use the one below and change the version tag
 - Then run the upgrade 1 node at a time with a 10 minute gap between nodes to allow for data syncing
 ```
-talosctl upgrade --nodes $NODE1 --image factory.talos.dev/installer/a44ca58b65602c48398f2f3eb0b2b03fe5b431e6dfd7b4ee7b8ee3ad53802de7:v1.10.2
-sleep 3600
-talosctl upgrade --nodes $NODE2 --image factory.talos.dev/installer/a44ca58b65602c48398f2f3eb0b2b03fe5b431e6dfd7b4ee7b8ee3ad53802de7:v1.10.2
-sleep 3600
-talosctl upgrade --nodes $NODE3 --image factory.talos.dev/installer/a44ca58b65602c48398f2f3eb0b2b03fe5b431e6dfd7b4ee7b8ee3ad53802de7:v1.10.2
-sleep 3600
-talosctl upgrade --nodes $NODE4 --image factory.talos.dev/installer/a44ca58b65602c48398f2f3eb0b2b03fe5b431e6dfd7b4ee7b8ee3ad53802de7:v1.10.2
+talosctl upgrade -n $NODE1 -n $NODE2 -n $NODE3 --image factory.talos.dev/installer/a44ca58b65602c48398f2f3eb0b2b03fe5b431e6dfd7b4ee7b8ee3ad53802de7:v1.10.4
 ```
 - IMPORTANT! Update the `controlplane.yaml` and `worker.yaml` files with these links too
 
@@ -213,7 +202,7 @@ curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 |
 # https://metallb.universe.tf/installation/
 
 # Install (but check for an update first)
-kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.14.9/config/manifests/metallb-native.yaml
+kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.15.2/config/manifests/metallb-native.yaml
 
 # Apply configs (wait for pods to be ready first)
 k apply -f kubernetes/manual/metal-lb
@@ -233,7 +222,7 @@ kubectl -n ingress-nginx patch deployment/ingress-nginx-controller --patch-file 
 - Required for automated SSL certs for `myapp.mydomain.com`
 ```
 # https://cert-manager.io/docs/installation/helm/
-helm upgrade --install cert-manager cert-manager --repo https://charts.jetstack.io --namespace cert-manager --create-namespace --version v1.17.2 --set installCRDs=true
+helm upgrade --install cert-manager cert-manager --repo https://charts.jetstack.io --namespace cert-manager --create-namespace --version v1.18.1 --set installCRDs=true
 
 # See the repo for the secrets and issuer configs
 ```
@@ -430,14 +419,33 @@ pkill -f "kubectl proxy"
 
 # Unifi Network Application MongoDB config
 - For Unifi's MongoDB to work, run the deployment as normal
-- Once the DB is up, exec into it
+- Ensure your permissions for the DB folder are `999:999` (needed for the DB to run)
+- Once the DB is up, exec into it (use k9s)
 ```
-k exec -it unifi-db-xxxx -- mongosh
+k exec -it unifi-db-xxxx -- sh
 ```
-- Now create the DB config
+- Now create the DB config by pasting this in
 ```
+mongosh <<EOF
+use ${MONGO_AUTHSOURCE}
+db.auth("${MONGO_INITDB_ROOT_USERNAME}", "${MONGO_INITDB_ROOT_PASSWORD}")
 db.getSiblingDB("unifi").createUser({user: "unifi", pwd: "unifi", roles: [{role: "readWrite", db: "unifi"}]});
 db.getSiblingDB("unifi_stat").createUser({user: "unifi", pwd: "unifi", roles: [{role: "readWrite", db: "unifi_stat"}]});
+EOF
+
+mongosh <<EOF
+use ${MONGO_AUTHSOURCE}
+db.auth("${MONGO_INITDB_ROOT_USERNAME}", "${MONGO_INITDB_ROOT_PASSWORD}")
+db.createUser({
+  user: "${MONGO_USER}",
+  pwd: "${MONGO_PASS}",
+  roles: [
+    { db: "${MONGO_DBNAME}", role: "dbOwner" },
+    { db: "${MONGO_DBNAME}_stat", role: "dbOwner" },
+    { db: "${MONGO_DBNAME}_audit", role: "dbOwner" }
+  ]
+})
+EOF
 ```
 - Once this is done, Unifi should just start
 - My initial attempt to restore my config backup from my old Unifi Controller failed as the upload just kept failing

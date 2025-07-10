@@ -3,7 +3,7 @@
     path: /mnt/ssd/docker/syncthing/config
     state: directory
     mode: "770"
-    owner: "1000"
+    group: "1000"
 
 - name: Copy over docker-compose.yml
   ansible.builtin.template:
