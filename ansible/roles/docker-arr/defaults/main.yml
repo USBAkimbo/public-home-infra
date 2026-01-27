@@ -4,6 +4,7 @@ TV_FOLDER_PATH: /mnt/storage/media/tv
 MOVIES_FOLDER_PATH: /mnt/storage/media/films
 GLUETUN_WIREGUARD_PRIVATE_KEY: Encrypted private key goes in main playbook
 GLUETUN_WIREGUARD_ADDRESSES: IPv4 address like 10.64.222.21/32
+GLUETUN_SERVER_CITIES: Amsterdam
 TRANSMISSION_PASSWORD: Set in main playbook
 JELLYFIN_FQDN: jellyfin.greenappleton.com
 SONARR_FQDN: sonarr.greenappleton.com
@@ -12,3 +13,4 @@ PROWLARR_FQDN: prowlarr.greenappleton.com
 TRANSMISSION_FQDN: transmission.greenappleton.com
 SABNZBD_FQDN: sabnzbd.greenappleton.com
 BAZARR_FQDN: bazarr.greenappleton.com
+DISPATCHARR_URL: dispatcharr.greenappleton.com

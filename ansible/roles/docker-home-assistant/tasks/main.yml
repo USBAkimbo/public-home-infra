@@ -1,0 +1,21 @@
+- name: Create Home Assistant directory
+  ansible.builtin.file:
+    path: "{{ DOCKER_VOLUMES_ROOT }}/home-assistant/config"
+    state: directory
+    mode: "770"
+
+- name: Copy over docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ DOCKER_VOLUMES_ROOT }}/home-assistant/docker-compose.yml"
+    mode: "770"
+
+- name: Start compose stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ DOCKER_VOLUMES_ROOT }}/home-assistant"
+    project_name: home-assistant
+
+- name: Cleanup compose file
+  ansible.builtin.file:
+    path: "{{ DOCKER_VOLUMES_ROOT }}/home-assistant/docker-compose.yml"
+    state: absent

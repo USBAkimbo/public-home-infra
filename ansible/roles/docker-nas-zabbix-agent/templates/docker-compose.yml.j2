@@ -1,6 +1,6 @@
 services:
   zabbix-agent:
-    image: zabbix/zabbix-agent2:alpine-7.0.16
+    image: zabbix/zabbix-agent2:alpine-7.0.22
     container_name: zabbix-agent
     restart: always
     ports:
@@ -18,3 +18,5 @@ services:
     environment:
       - ZBX_PASSIVESERVERS=10.0.0.0/8
       - ZBX_HOSTNAME={{ ZABBIX_HOSTNAME }}
+    group_add:
+    - "999" # Required for TrueNAS

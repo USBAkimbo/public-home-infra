@@ -1,0 +1,7 @@
+- hosts: proxmox_hosts
+  become: yes
+  roles:
+    - roles/install-zabbix-agent2
+    - roles/proxmox-disable-ipv6
+    - roles/install-sensors
+    - roles/install-alloy-ubuntu

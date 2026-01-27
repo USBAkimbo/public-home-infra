@@ -3,7 +3,7 @@
 services:
   filebrowser:
     container_name: filebrowser
-    image: gtstef/filebrowser:0.7.12-beta
+    image: gtstef/filebrowser:1.2.1-beta
     restart: always
     user: "{{ FILEBROWSER_UID }}"
     environment:
@@ -21,10 +21,6 @@ services:
       - traefik.http.middlewares.filebrowser-buffer.buffering.maxRequestBodyBytes=17179869184 # 16GB max upload size
       - traefik.http.middlewares.filebrowser-buffer.buffering.memRequestBodyBytes=104857600
       - traefik.http.middlewares.filebrowser-buffer.buffering.maxResponseBodyBytes=17179869184
-    logging:
-      driver: gelf
-      options:
-        gelf-address: udp://{{ SEQ_GELF_IP }}:12201
 
 networks:
   proxy:

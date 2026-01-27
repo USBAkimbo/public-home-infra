@@ -1,0 +1,582 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# *arr Download Reaper Script
+# This script monitors Sonarr/Radarr download queue and removes downloads with blacklisted file extensions
+
+# Load configuration from .env file
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ENV_FILE="${SCRIPT_DIR}/.env"
+
+if [[ ! -f "${ENV_FILE}" ]]; then
+    echo "Error: Environment file not found at ${ENV_FILE}"
+    echo "Please create a .env file based on .env.example"
+    exit 1
+fi
+
+# Source environment variables
+source "${ENV_FILE}"
+
+# Validate required environment variables
+required_vars=(
+    "DISCORD_WEBHOOK_URL"
+    "BLACKLISTED_EXTENSIONS"
+)
+
+for var in "${required_vars[@]}"; do
+    if [[ -z "${!var:-}" ]]; then
+        echo "Error: Required environment variable ${var} is not set"
+        exit 1
+    fi
+done
+
+# Determine which applications to monitor based on configured API credentials
+APPLICATIONS=()
+
+if [[ -n "${SONARR_API_URL:-}" && -n "${SONARR_API_KEY:-}" ]]; then
+    APPLICATIONS+=("sonarr")
+fi
+
+if [[ -n "${RADARR_API_URL:-}" && -n "${RADARR_API_KEY:-}" ]]; then
+    APPLICATIONS+=("radarr")
+fi
+
+# Validate at least one application is configured
+if [[ ${#APPLICATIONS[@]} -eq 0 ]]; then
+    echo "Error: No applications configured. Please set at least one of:"
+    echo "  - SONARR_API_URL and SONARR_API_KEY"
+    echo "  - RADARR_API_URL and RADARR_API_KEY"
+    exit 1
+fi
+
+echo "Configured to monitor: ${APPLICATIONS[*]}"
+
+# Set defaults for optional variables
+REMOVE_FROM_CLIENT="${REMOVE_FROM_CLIENT:-true}"
+BLOCKLIST="${BLOCKLIST:-false}"
+SKIP_REDOWNLOAD="${SKIP_REDOWNLOAD:-false}"
+CHANGE_CATEGORY="${CHANGE_CATEGORY:-false}"
+BLOCK_NO_EXTENSION="${BLOCK_NO_EXTENSION:-true}"
+REMOVE_STUCK_DOWNLOADS="${REMOVE_STUCK_DOWNLOADS:-false}"
+BLOCK_DANGEROUS_STATUS_MESSAGES="${BLOCK_DANGEROUS_STATUS_MESSAGES:-true}"
+
+# Function to send Discord webhook notification
+send_discord_notification() {
+    local title="$1"
+    local description="$2"
+    local color="$3"
+    
+    # Use jq to safely construct JSON payload with proper escaping
+    local payload=$(jq -n \
+        --arg title "${title}" \
+        --arg description "${description}" \
+        --argjson color "${color}" \
+        --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%S.000Z)" \
+        '{embeds: [{title: $title, description: $description, color: $color, timestamp: $timestamp}]}')
+    
+    local response=$(curl -s -w "\n%{http_code}" -H "Content-Type: application/json" -d "${payload}" "${DISCORD_WEBHOOK_URL}")
+    local http_code=$(echo "${response}" | tail -n1)
+    
+    if [[ "${http_code}" -lt 200 || "${http_code}" -ge 300 ]]; then
+        echo "Warning: Discord webhook notification failed (HTTP ${http_code})"
+    fi
+}
+
+# Function to check if a file has a blacklisted extension
+is_blacklisted() {
+    local filepath="$1"
+    local filename=$(basename "${filepath}")
+    
+    # Common video/media file extensions that are considered valid
+    local valid_extensions="mkv|mp4|avi|mov|wmv|flv|webm|m4v|mpg|mpeg|m2ts|ts|vob|iso|nfo|srt|sub|idx"
+    
+    # Check if file has no extension (no dot in filename after stripping path)
+    if [[ ! "${filename}" =~ \. ]]; then
+        # No dot at all - return special value for "no extension"
+        echo "no_extension"
+        return
+    fi
+    
+    # Extract the last segment after the last dot (potential extension)
+    local extension="${filename##*.}"
+    extension=$(echo "${extension}" | tr '[:upper:]' '[:lower:]')
+    
+    # Check if this is a blacklisted extension
+    IFS=',' read -ra blacklist <<< "${BLACKLISTED_EXTENSIONS}"
+    for blocked_ext in "${blacklist[@]}"; do
+        blocked_ext=$(echo "${blocked_ext}" | tr '[:upper:]' '[:lower:]' | xargs)
+        if [[ "${extension}" == "${blocked_ext}" ]]; then
+            echo "true"
+            return
+        fi
+    done
+    
+    # Check if the extension is a valid media extension
+    # Valid extensions are typically 2-4 chars, alphanumeric only
+    if [[ "${extension}" =~ ^[a-z0-9]{2,4}$ ]] && [[ "${extension}" =~ ^(${valid_extensions})$ ]]; then
+        # It's a recognized valid extension and not blacklisted
+        echo "false"
+        return
+    fi
+    
+    # The "extension" is either too long, contains special chars, or not recognized
+    # Treat as no valid extension
+    echo "no_extension"
+}
+
+# Function to get reason for blacklisting
+get_blacklist_reason() {
+    local filepath="$1"
+    local filename=$(basename "${filepath}")
+    
+    # Common video/media file extensions that are considered valid
+    local valid_extensions="mkv|mp4|avi|mov|wmv|flv|webm|m4v|mpg|mpeg|m2ts|ts|vob|iso|nfo|srt|sub|idx"
+    
+    if [[ ! "${filename}" =~ \. ]]; then
+        echo "No file extension"
+        return
+    fi
+    
+    local extension="${filename##*.}"
+    extension=$(echo "${extension}" | tr '[:upper:]' '[:lower:]')
+    
+    # Check if this is a blacklisted extension
+    IFS=',' read -ra blacklist <<< "${BLACKLISTED_EXTENSIONS}"
+    for blocked_ext in "${blacklist[@]}"; do
+        blocked_ext=$(echo "${blocked_ext}" | tr '[:upper:]' '[:lower:]' | xargs)
+        if [[ "${extension}" == "${blocked_ext}" ]]; then
+            echo "Blacklisted extension: .${extension}"
+            return
+        fi
+    done
+    
+    # Check if it's a valid media extension
+    if [[ "${extension}" =~ ^[a-z0-9]{2,4}$ ]] && [[ "${extension}" =~ ^(${valid_extensions})$ ]]; then
+        # Shouldn't reach here, but just in case
+        echo "Valid extension but blocked: .${extension}"
+        return
+    fi
+    
+    # Invalid or unrecognized extension
+    echo "No valid file extension (found: .${extension})"
+}
+
+# Function to delete download from queue
+delete_download() {
+    local queue_id="$1"
+    local title="$2"
+    
+    local api_url="${API_URL}/api/v3/queue/${queue_id}"
+    local query_params="removeFromClient=${REMOVE_FROM_CLIENT}&blocklist=${BLOCKLIST}&skipRedownload=${SKIP_REDOWNLOAD}&changeCategory=${CHANGE_CATEGORY}"
+    
+    local response=$(curl -s -w "\n%{http_code}" -X DELETE \
+        -H "X-Api-Key: ${API_KEY}" \
+        "${api_url}?${query_params}")
+    
+    local http_code=$(echo "${response}" | tail -n1)
+    local body=$(echo "${response}" | sed '$d')
+    
+    if [[ "${http_code}" -ge 200 && "${http_code}" -lt 300 ]]; then
+        echo "Successfully deleted queue item: ${title}"
+        return 0
+    else
+        echo "Failed to delete queue item: ${title} (HTTP ${http_code})"
+        # Send Discord notification about failed API call
+        local error_description="Failed to delete download: **${title}**
+
+HTTP Status: ${http_code}
+
+Response:
+\`\`\`json
+${body}
+\`\`\`"
+        send_discord_notification "${APP_NAME} Reaper API Error" "${error_description}" "16744192"
+        return 1
+    fi
+}
+
+# Function to check if download is stuck (no timeleft and size hasn't changed)
+is_download_stuck() {
+    local download_id="$1"
+    local current_sizeleft="$2"
+    
+    # If stuck downloads file doesn't exist, create empty JSON
+    if [[ ! -f "${STUCK_DOWNLOADS_FILE}" ]]; then
+        echo "{}" > "${STUCK_DOWNLOADS_FILE}"
+        return 1
+    fi
+    
+    # Check if this download was tracked before
+    local previous_sizeleft=$(jq -r --arg id "${download_id}" '.[$id] // "null"' "${STUCK_DOWNLOADS_FILE}")
+    
+    
+    if [[ "${previous_sizeleft}" == "null" ]]; then
+        # First time seeing this stuck download
+        return 1
+    fi
+    
+    # Check if size hasn't changed
+    if [[ "${previous_sizeleft}" == "${current_sizeleft}" ]]; then
+        # Download is stuck (size hasn't changed since last run)
+        return 0
+    fi
+    
+    # Size has changed, not stuck yet
+    return 1
+}
+
+# Function to track a potentially stuck download
+track_stuck_download() {
+    local download_id="$1"
+    local sizeleft="$2"
+    
+    # Create or update the tracking file
+    if [[ ! -f "${STUCK_DOWNLOADS_FILE}" ]]; then
+        echo "{}" > "${STUCK_DOWNLOADS_FILE}"
+    fi
+    
+    # Update the tracking file with current sizeleft
+    local temp_file=$(mktemp)
+    jq --arg id "${download_id}" --arg size "${sizeleft}" '. + {($id): $size}' "${STUCK_DOWNLOADS_FILE}" > "${temp_file}"
+    mv "${temp_file}" "${STUCK_DOWNLOADS_FILE}"
+}
+
+# Function to remove download from stuck tracking
+remove_from_stuck_tracking() {
+    local download_id="$1"
+    
+    if [[ -f "${STUCK_DOWNLOADS_FILE}" ]]; then
+        local temp_file=$(mktemp)
+        jq --arg id "${download_id}" 'del(.[$id])' "${STUCK_DOWNLOADS_FILE}" > "${temp_file}"
+        mv "${temp_file}" "${STUCK_DOWNLOADS_FILE}"
+    fi
+}
+
+# Function to check if status messages contain dangerous warnings
+has_dangerous_status_message() {
+    local status_messages="$1"
+    
+    # List of dangerous status message patterns
+    local dangerous_patterns=(
+        "Caution: Found potentially dangerous file with extension:"
+        "Caution: Found executable file with extension:"
+        "Caution: Found file with user defined rejected extension:"
+        "Found archive file, might need to be extracted"
+    )
+    
+    # Check if any dangerous pattern is found in the status messages
+    for pattern in "${dangerous_patterns[@]}"; do
+        if echo "${status_messages}" | grep -q "${pattern}"; then
+            echo "true"
+            return
+        fi
+    done
+    
+    echo "false"
+}
+
+# Function to check if download was already flagged for manual review
+needs_manual_review_notification() {
+    local download_id="$1"
+    
+    if [[ ! -f "${MANUAL_REVIEW_FILE}" ]]; then
+        echo "{}" > "${MANUAL_REVIEW_FILE}"
+        echo "true"
+        return
+    fi
+    
+    local already_flagged=$(jq -r --arg id "${download_id}" '.[$id] // "null"' "${MANUAL_REVIEW_FILE}")
+    
+    if [[ "${already_flagged}" == "null" ]]; then
+        echo "true"
+    else
+        echo "false"
+    fi
+}
+
+# Function to track download as needing manual review
+track_manual_review() {
+    local download_id="$1"
+    
+    if [[ ! -f "${MANUAL_REVIEW_FILE}" ]]; then
+        echo "{}" > "${MANUAL_REVIEW_FILE}"
+    fi
+    
+    local temp_file=$(mktemp)
+    jq --arg id "${download_id}" --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%S.000Z)" '. + {($id): $timestamp}' "${MANUAL_REVIEW_FILE}" > "${temp_file}"
+    mv "${temp_file}" "${MANUAL_REVIEW_FILE}"
+}
+
+# Function to remove download from manual review tracking
+remove_from_manual_review() {
+    local download_id="$1"
+    
+    if [[ -f "${MANUAL_REVIEW_FILE}" ]]; then
+        local temp_file=$(mktemp)
+        jq --arg id "${download_id}" 'del(.[$id])' "${MANUAL_REVIEW_FILE}" > "${temp_file}"
+        mv "${temp_file}" "${MANUAL_REVIEW_FILE}"
+    fi
+}
+
+# Main processing function for a single *arr application
+process_arr_application() {
+    local arr_type="$1"
+    local api_url="$2"
+    local api_key="$3"
+    local app_name="$4"
+    
+    # Set tracking files for this application
+    STUCK_DOWNLOADS_FILE="/tmp/${arr_type}_stuck_downloads.json"
+    MANUAL_REVIEW_FILE="/tmp/${arr_type}_manual_review.json"
+    
+    # These variables need to be accessible to the helper functions
+    API_URL="${api_url}"
+    API_KEY="${api_key}"
+    APP_NAME="${app_name}"
+    
+    # Main script logic
+    echo ""
+    echo "=========================================="
+    echo "Starting ${APP_NAME} Download Reaper..."
+    echo "${APP_NAME} API URL: ${API_URL}"
+    echo "Blacklisted extensions: ${BLACKLISTED_EXTENSIONS}"
+    echo "=========================================="
+    
+    # Fetch queue from *arr
+    echo "Fetching download queue from ${APP_NAME}..."
+    queue_response=$(curl -s -w "\n%{http_code}" -X GET \
+        -H "X-Api-Key: ${API_KEY}" \
+        "${API_URL}/api/v3/queue")
+
+http_code=$(echo "${queue_response}" | tail -n1)
+queue_body=$(echo "${queue_response}" | sed '$d')
+
+if [[ "${http_code}" -lt 200 || "${http_code}" -ge 300 ]]; then
+    echo "Error: Failed to fetch queue from ${APP_NAME} (HTTP ${http_code})"
+    error_description="Failed to fetch queue from ${APP_NAME} API
+
+HTTP Status: ${http_code}
+
+Response:
+\`\`\`json
+${queue_body}
+\`\`\`"
+    send_discord_notification "${APP_NAME} Reaper API Error" "${error_description}" "16744192"
+    exit 1
+fi
+
+# Check if jq is available
+if ! command -v jq &> /dev/null; then
+    echo "Error: jq is required but not installed. Please install jq."
+    exit 1
+fi
+
+# Parse queue and check for blacklisted files
+total_records=$(echo "${queue_body}" | jq -r '.totalRecords // 0')
+echo "Found ${total_records} items in queue"
+
+if [[ "${total_records}" -eq 0 ]]; then
+    echo "Queue is empty, nothing to process"
+    return 0
+fi
+
+# Process each record
+reaped_count=0
+reaped_file=$(mktemp)
+echo "0" > "${reaped_file}"
+
+while IFS= read -r record; do
+    # Extract queue item ID (not seriesId or episodeId - this is the queue's own ID field)
+    queue_id=$(echo "${record}" | jq -r '.id')
+    title=$(echo "${record}" | jq -r '.title')
+    output_path=$(echo "${record}" | jq -r '.outputPath // ""')
+    download_id=$(echo "${record}" | jq -r '.downloadId // ""')
+    sizeleft=$(echo "${record}" | jq -r '.sizeleft // 0')
+    timeleft=$(echo "${record}" | jq -r '.timeleft // "null"')
+    status_messages=$(echo "${record}" | jq -r '.statusMessages[].messages[]? // ""' | tr '\n' ' ')
+    
+    if [[ -z "${output_path}" ]]; then
+        echo "Skipping ${title}: No output path"
+        continue
+    fi
+    
+    echo "Checking: ${title}"
+    echo "  Output path: ${output_path}"
+    
+    # PRIORITY 1: Check for stuck downloads FIRST (before any extension logic)
+    # This ensures stuck downloads are removed regardless of extension status
+    if [[ "${REMOVE_STUCK_DOWNLOADS}" == "true" ]] && [[ "${timeleft}" == "null" ]] && [[ -n "${download_id}" ]]; then
+        echo "  Download has no timeleft field"
+        
+        # Check if download is stuck (size hasn't changed since last check)
+        if is_download_stuck "${download_id}" "${sizeleft}"; then
+            echo "  STUCK: Size hasn't changed since last run (${sizeleft} bytes remaining)"
+            
+            # Delete the stuck download
+            if delete_download "${queue_id}" "${title}"; then
+                # Build notification description for stuck download
+                notification_description="**Download Title:** ${title}
+
+**Reason:** Stuck download (no progress detected)
+
+**Output Path:** \`${output_path}\`
+
+**Size Remaining:** ${sizeleft} bytes
+
+**Actions Taken:**
+• Remove from client: ${REMOVE_FROM_CLIENT}
+• Blocklist: ${BLOCKLIST}
+• Skip redownload: ${SKIP_REDOWNLOAD}
+• Change category: ${CHANGE_CATEGORY}"
+                
+                send_discord_notification "${APP_NAME} Download Reaped" "${notification_description}" "15158332"
+                
+                # Increment counter
+                reaped_count=$(cat "${reaped_file}")
+                echo $((reaped_count + 1)) > "${reaped_file}"
+                
+                # Remove from tracking
+                remove_from_stuck_tracking "${download_id}"
+                remove_from_manual_review "${download_id}"
+            fi
+            continue
+        else
+            echo "  Tracking for stuck detection (size: ${sizeleft} bytes remaining)"
+            # Track this download for next run
+            track_stuck_download "${download_id}" "${sizeleft}"
+            # Continue to next item - we'll check if it's actually stuck on the next run
+            continue
+        fi
+    fi
+    
+    # PRIORITY 2: Check extension status
+    extension_status=$(is_blacklisted "${output_path}")
+    
+    # Handle blacklisted extensions (always delete regardless of status messages)
+    if [[ "${extension_status}" == "true" ]]; then
+        reason=$(get_blacklist_reason "${output_path}")
+        echo "  BLACKLISTED: ${reason}"
+        
+        # Delete the download
+        if delete_download "${queue_id}" "${title}"; then
+            # Build notification description with proper newlines
+            notification_description="**Download Title:** ${title}
+
+**Reason:** ${reason}
+
+**Output Path:** \`${output_path}\`
+
+**Actions Taken:**
+• Remove from client: ${REMOVE_FROM_CLIENT}
+• Blocklist: ${BLOCKLIST}
+• Skip redownload: ${SKIP_REDOWNLOAD}
+• Change category: ${CHANGE_CATEGORY}"
+            
+            send_discord_notification "${APP_NAME} Download Reaped" "${notification_description}" "15158332"
+            
+            # Increment counter
+            reaped_count=$(cat "${reaped_file}")
+            echo $((reaped_count + 1)) > "${reaped_file}"
+            
+            # Remove from tracking
+            remove_from_stuck_tracking "${download_id}"
+            remove_from_manual_review "${download_id}"
+        fi
+    # Handle files/folders without valid extensions
+    elif [[ "${extension_status}" == "no_extension" ]]; then
+        echo "  No valid extension detected"
+        
+        # Check if dangerous status messages are present
+        if [[ "${BLOCK_DANGEROUS_STATUS_MESSAGES}" == "true" ]] && [[ "$(has_dangerous_status_message "${status_messages}")" == "true" ]]; then
+            echo "  DANGEROUS: Status messages indicate potential threat"
+            echo "  Status: ${status_messages}"
+            
+            # Delete the download
+            if delete_download "${queue_id}" "${title}"; then
+                notification_description="**Download Title:** ${title}
+
+**Reason:** No valid extension with dangerous status messages
+
+**Output Path:** \`${output_path}\`
+
+**Status Messages:** ${status_messages}
+
+**Actions Taken:**
+• Remove from client: ${REMOVE_FROM_CLIENT}
+• Blocklist: ${BLOCKLIST}
+• Skip redownload: ${SKIP_REDOWNLOAD}
+• Change category: ${CHANGE_CATEGORY}"
+                
+                send_discord_notification "${APP_NAME} Download Reaped" "${notification_description}" "15158332"
+                
+                # Increment counter
+                reaped_count=$(cat "${reaped_file}")
+                echo $((reaped_count + 1)) > "${reaped_file}"
+                
+                # Remove from tracking
+                remove_from_stuck_tracking "${download_id}"
+                remove_from_manual_review "${download_id}"
+            fi
+        else
+            # No dangerous status messages - needs manual review
+            echo "  MANUAL REVIEW NEEDED: No valid extension but no dangerous status messages"
+            
+            # Check if we need to notify (only once per download)
+            if [[ "$(needs_manual_review_notification "${download_id}")" == "true" ]]; then
+                echo "  Sending manual review notification to Discord"
+                
+                notification_description="**Download Title:** ${title}
+
+**Reason:** Manual review required - no valid extension detected
+
+**Output Path:** \`${output_path}\`
+
+**Status Messages:** ${status_messages}
+
+**Action Required:** Please review this download manually in Sonarr"
+                
+                send_discord_notification "${APP_NAME} Manual Review Required" "${notification_description}" "16776960"
+                
+                # Track that we've notified about this download
+                track_manual_review "${download_id}"
+            else
+                echo "  Already notified for manual review"
+            fi
+        fi
+    else
+        echo "  OK"
+        # Remove from tracking if it was previously tracked (download completed or is now fine)
+        if [[ -n "${download_id}" ]]; then
+            remove_from_stuck_tracking "${download_id}"
+            remove_from_manual_review "${download_id}"
+        fi
+    fi
+done < <(echo "${queue_body}" | jq -c '.records[]')
+
+reaped_count=$(cat "${reaped_file}")
+rm -f "${reaped_file}"
+
+echo ""
+echo "Reaper finished for ${APP_NAME}. Total items reaped: ${reaped_count}"
+}
+
+# Check if jq is available
+if ! command -v jq &> /dev/null; then
+    echo "Error: jq is required but not installed. Please install jq."
+    exit 1
+fi
+
+# Process each configured application
+for arr_type in "${APPLICATIONS[@]}"; do
+    if [[ "${arr_type}" == "sonarr" ]]; then
+        process_arr_application "sonarr" "${SONARR_API_URL}" "${SONARR_API_KEY}" "Sonarr"
+    elif [[ "${arr_type}" == "radarr" ]]; then
+        process_arr_application "radarr" "${RADARR_API_URL}" "${RADARR_API_KEY}" "Radarr"
+    fi
+done
+
+echo ""
+echo "=========================================="
+echo "All configured applications processed successfully"
+echo "=========================================="

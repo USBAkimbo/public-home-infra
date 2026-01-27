@@ -1,0 +1,21 @@
+services:
+  palmr:
+    container_name: palmr
+    image: kyantech/palmr:v3.3.2-beta
+    restart: always
+    volumes:
+      - {{ DOCKER_VOLUMES_ROOT }}/palmr/data:/app/server
+    networks:
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=proxy
+      - traefik.http.routers.palmr.rule=Host(`{{ PALMR_URL }}`)
+      - traefik.http.routers.palmr.entrypoints=websecure
+      - traefik.http.routers.palmr.tls.certresolver=cloudflare
+      - traefik.http.services.palmr.loadbalancer.server.port=5487
+      - traefik.http.routers.palmr.service=palmr
+
+networks:
+  proxy:
+    external: true

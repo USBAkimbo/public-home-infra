@@ -4,7 +4,7 @@ services:
     privileged: true # this may not be necessary for all setups
     restart: unless-stopped
     stop_grace_period: 30s # allow enough time to shut down the various services
-    image: ghcr.io/blakeblackshear/frigate:0.15.1
+    image: ghcr.io/blakeblackshear/frigate:0.16.3
     shm_size: "512mb"
     devices:
       - /dev/bus/usb:/dev/bus/usb # Passes the Coral AI USB module
@@ -27,10 +27,6 @@ services:
       - traefik.http.routers.cctv.entrypoints=websecure
       - traefik.http.routers.cctv.tls.certresolver=cloudflare
       - traefik.http.services.cctv.loadbalancer.server.port=8971
-    logging:
-      driver: gelf
-      options:
-        gelf-address: udp://{{ SEQ_GELF_IP }}:12201
     networks:
       - proxy
 

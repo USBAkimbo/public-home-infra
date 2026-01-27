@@ -1,0 +1,25 @@
+services:
+  home-assistant:
+    container_name: home-assistant
+    image: ghcr.io/home-assistant/home-assistant:2026.1
+    restart: always
+    volumes:
+      - {{ DOCKER_VOLUMES_ROOT }}/home-assistant/config:/config
+    environment:
+      - TZ=GMT
+      - PUID=1000
+      - PGID=1000
+    networks:
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=proxy
+      - traefik.http.routers.home-assistant.rule=Host(`{{ HOME_ASSISTANT_URL }}`)
+      - traefik.http.routers.home-assistant.entrypoints=websecure
+      - traefik.http.routers.home-assistant.tls.certresolver=cloudflare
+      - traefik.http.services.home-assistant.loadbalancer.server.port=8123
+      - traefik.http.routers.home-assistant.service=home-assistant
+
+networks:
+  proxy:
+    external: true

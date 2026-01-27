@@ -1,21 +1,9 @@
 #!/bin/bash
 
 # Vars
-dt=$(date "+%Y-%m-%d--%H-%M")
 DATA_DIR="{{ ZABBIX_PGSQL_DB_PATH }}/data"
 BACKUP_DIR="{{ ZABBIX_PGSQL_DB_PATH }}/backups"
-BACKUP_FILE="zabbix-pgsql-backup-$dt"
-
-#!/bin/bash
-
-# Vars
-dt=$(date "+%Y-%m-%d--%H-%M")
-DATA_DIR="{{ ZABBIX_PGSQL_DB_PATH }}/data"
-BACKUP_DIR="{{ ZABBIX_PGSQL_DB_PATH }}/backups"
-BACKUP_FILE="zabbix-pgsql-backup-$dt"
-
-# Set trap for EXIT, INT, TERM signals
-trap 'docker start zabbix-db' EXIT INT TERM
+BACKUP_FILE="zabbix-pgsql-backup-$(date "+%Y-%m-%d--%H-%M")"
 
 echo "Stopping Zabbix DB container"
 docker stop zabbix-db
@@ -28,6 +16,7 @@ tar -cvf $BACKUP_DIR/$BACKUP_FILE.tar .
 if [ $? -ne 0 ]; then
     echo "ERROR: Backup creation failed."
     echo "1" > last-backup-exit-code
+    docker start zabbix-db
     exit 1
 fi
 
@@ -40,7 +29,7 @@ gzip --best $BACKUP_FILE.tar
 
 # Check for errors
 if [ $? -ne 0 ]; then
-    echo "ERROR: Backup creation failed."
+    echo "ERROR: Backup compression failed."
     echo "1" > last-backup-exit-code
     exit 1
 fi
@@ -57,19 +46,6 @@ exit 0
 echo "Correcting permissions"
 chmod -R 755 /mnt/ssd/zabbix-backup-exit-codes
 
-# To restore DB from backup, first exec into the container
-# docker exec -u postgres -it zabbix-db bash
-#
-# Create a new database and enable TimescaleDB:
-# CREATE DATABASE zabbix;
-# \c zabbix
-# CREATE EXTENSION IF NOT EXISTS timescaledb;
-#
-# Put your database in the right state for restoring:
-# SELECT timescaledb_pre_restore();
-#
-# Restore the database:
-# pg_restore --format=custom --clean --if-exists -d zabbix /backups/backupname.bak
-#
-# Return your database to normal operations:
-# SELECT timescaledb_post_restore();
+# To restore DB from backup, stop the container
+# Then replace the data folder with the backup folder
+# Then start the container

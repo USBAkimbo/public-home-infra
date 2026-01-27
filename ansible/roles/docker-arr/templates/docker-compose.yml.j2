@@ -3,7 +3,7 @@ services:
   # All containers force their network traffic through this container
   gluetun:
     container_name: gluetun
-    image: ghcr.io/qdm12/gluetun:v3.40.0
+    image: ghcr.io/qdm12/gluetun:v3.41.0
     restart: always
     cap_add:
       - NET_ADMIN
@@ -11,10 +11,11 @@ services:
       - /dev/net/tun:/dev/net/tun
     environment:
       - TZ=Europe/London
-      - VPNSP=mullvad
+      - VPN_SERVICE_PROVIDER=mullvad
       - VPN_TYPE=wireguard
       - WIREGUARD_PRIVATE_KEY={{ GLUETUN_WIREGUARD_PRIVATE_KEY }}
       - WIREGUARD_ADDRESSES={{ GLUETUN_WIREGUARD_ADDRESSES }}
+      - SERVER_CITIES={{ GLUETUN_SERVER_CITIES }}
     labels:
       # Enable Traefik reverse proxy
       - traefik.enable=true
@@ -60,6 +61,12 @@ services:
       - traefik.http.routers.bazarr.tls.certresolver=cloudflare
       - traefik.http.services.bazarr.loadbalancer.server.port=6767
       - traefik.http.routers.bazarr.service=bazarr
+      # Dispatcharr
+      - traefik.http.routers.dispatcharr.rule=Host(`{{ DISPATCHARR_URL }}`)
+      - traefik.http.routers.dispatcharr.entrypoints=websecure
+      - traefik.http.routers.dispatcharr.tls.certresolver=cloudflare
+      - traefik.http.services.dispatcharr.loadbalancer.server.port=9191
+      - traefik.http.routers.dispatcharr.service=dispatcharr
     #ports:
       # Host:Container/tcp|udp
       # If not specified it will be TCP
@@ -83,7 +90,7 @@ services:
 
   jellyfin:
     container_name: jellyfin
-    image: lscr.io/linuxserver/jellyfin:10.10.7
+    image: lscr.io/linuxserver/jellyfin:10.11.6
     restart: always
     network_mode: service:gluetun
     environment:
@@ -100,7 +107,7 @@ services:
 
   sonarr:
     container_name: sonarr
-    image: lscr.io/linuxserver/sonarr:4.0.15
+    image: lscr.io/linuxserver/sonarr:4.0.16
     restart: always
     network_mode: service:gluetun
     environment:
@@ -114,7 +121,7 @@ services:
 
   radarr:
     container_name: radarr
-    image: lscr.io/linuxserver/radarr:5.26.2
+    image: lscr.io/linuxserver/radarr:6.0.4
     restart: always
     network_mode: service:gluetun
     environment:
@@ -128,7 +135,7 @@ services:
 
   prowlarr:
     container_name: prowlarr
-    image: lscr.io/linuxserver/prowlarr:1.37.0
+    image: lscr.io/linuxserver/prowlarr:2.3.0
     restart: always
     network_mode: service:gluetun
     environment:
@@ -155,7 +162,7 @@ services:
 
   sabnzbd:
     container_name: sabnzbd
-    image: lscr.io/linuxserver/sabnzbd:4.5.2
+    image: lscr.io/linuxserver/sabnzbd:4.5.5
     restart: always
     network_mode: service:gluetun
     environment:
@@ -169,7 +176,7 @@ services:
 
   bazarr:
     container_name: bazarr
-    image: lscr.io/linuxserver/bazarr:1.5.2
+    image: lscr.io/linuxserver/bazarr:1.5.4
     restart: always
     network_mode: service:gluetun
     environment:
@@ -180,6 +187,22 @@ services:
       - {{ DOCKER_VOLUMES_ROOT }}/bazarr:/config
       - {{ TV_FOLDER_PATH }}:/tv
       - {{ MOVIES_FOLDER_PATH }}:/movies
+
+  dispatcharr:
+    container_name: dispatcharr
+    image: ghcr.io/dispatcharr/dispatcharr:0.17.0
+    restart: always
+    network_mode: service:gluetun
+    volumes:
+      - {{ DOCKER_VOLUMES_ROOT }}/dispatcharr/data:/data
+
+  flaresolverr:
+    container_name: flaresolverr
+    image: ghcr.io/flaresolverr/flaresolverr:v3.4.6
+    restart: always
+    network_mode: service:gluetun
+    environment:
+      - LOG_LEVEL=info
 
 # Use Traefik proxy network for ingress
 networks:

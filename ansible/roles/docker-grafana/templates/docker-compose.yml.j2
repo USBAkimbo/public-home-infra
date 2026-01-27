@@ -1,0 +1,21 @@
+services:
+  grafana:
+    container_name: grafana
+    image: grafana/grafana:12.3.0-17962464148-ubuntu
+    restart: always
+    volumes:
+      - {{ DOCKER_VOLUMES_ROOT }}/grafana/data:/var/lib/grafana
+    networks:
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=proxy
+      - traefik.http.routers.grafana.rule=Host(`{{ GRAFANA_URL }}`)
+      - traefik.http.routers.grafana.entrypoints=websecure
+      - traefik.http.routers.grafana.tls.certresolver=cloudflare
+      - traefik.http.services.grafana.loadbalancer.server.port=3000
+      - traefik.http.routers.grafana.service=grafana
+
+networks:
+  proxy:
+    external: true

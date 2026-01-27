@@ -1,0 +1,2 @@
+DOCKER_VOLUMES_ROOT: /opt/dockervolumes
+HOME_ASSISTANT_URL: home-assistant.greenappleton.com

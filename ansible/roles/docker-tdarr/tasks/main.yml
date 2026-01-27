@@ -1,0 +1,26 @@
+- name: Create tdarr directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "770"
+  loop:
+    - "{{ DOCKER_VOLUMES_ROOT }}/tdarr"
+    - "{{ DOCKER_VOLUMES_ROOT }}/tdarr/server"
+    - "{{ DOCKER_VOLUMES_ROOT }}/tdarr/configs"
+    - "{{ DOCKER_VOLUMES_ROOT }}/tdarr/logs"
+
+- name: Copy over docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ DOCKER_VOLUMES_ROOT }}/tdarr/docker-compose.yml"
+    mode: "770"
+
+- name: Start compose stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ DOCKER_VOLUMES_ROOT }}/tdarr"
+    project_name: tdarr
+
+- name: Cleanup compose file
+  ansible.builtin.file:
+    path: "{{ DOCKER_VOLUMES_ROOT }}/tdarr/docker-compose.yml"
+    state: absent

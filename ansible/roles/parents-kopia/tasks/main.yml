@@ -6,14 +6,24 @@
   ansible.builtin.command:
     cmd: kopia policy set --global --keep-daily 30 --keep-weekly 52 --keep-monthly 0 --keep-annual 0 --keep-latest 0
 
-- name: Create cron job to backup /opt daily at 08:00
+- name: Create cron job to backup /opt daily at 09:00
   ansible.builtin.cron:
     name: kopia-opt
     cron_file: kopia-opt
     minute: 0
-    hour: 8
+    hour: 9
     user: root
-    job: kopia snapshot create /opt && echo $? > /var/log/kopia-data-exit-code.log
+    job: kopia snapshot create /opt && echo $? > /var/log/kopia-opt-exit-code.log
+
+- name: Create cron job to backup /etc daily at 09:00
+  ansible.builtin.cron:
+    name: kopia-opt
+    cron_file: kopia-opt
+    minute: 0
+    hour: 9
+    user: root
+    job: kopia snapshot create /opt && echo $? > /var/log/kopia-etc-exit-code.log
+
 
 - name: Create cron job to backup /mnt/data daily at 09:00
   ansible.builtin.cron:

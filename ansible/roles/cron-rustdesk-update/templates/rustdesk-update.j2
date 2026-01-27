@@ -1,0 +1,40 @@
+#!/bin/bash
+
+# Exit on failed command
+set -e
+
+# Check for root privileges
+if [[ $EUID -ne 0 ]]; then
+   echo "This script must be run as root. Exiting." >&2
+   exit 1
+fi
+
+# Vars
+REPO="rustdesk/rustdesk"
+API_URL="https://api.github.com/repos/$REPO/releases/latest"
+LATEST_VERSION=$(curl -s "$API_URL" | jq -r '.tag_name')
+
+# Validate that we got a version number.
+if [ -z "$LATEST_VERSION" ] || [ "$LATEST_VERSION" == "null" ]; then
+  echo "Error: Could not determine latest version from GitHub API. Exiting." >&2
+  exit 1
+fi
+
+# Compare version to installed version
+INSTALLED_VERSION=$(apt-cache policy rustdesk | grep 'Installed' | awk '{print $2}' || echo "0")
+if [ "$LATEST_VERSION" != "$INSTALLED_VERSION" ]; then
+  echo "Your installed version is: $INSTALLED_VERSION"
+  echo "A new version of RustDesk is available: $LATEST_VERSION"
+else
+  echo "Your installed version of RustDesk is already up to date"
+  exit 0
+fi
+
+# Download the latest .deb package
+wget https://github.com/rustdesk/rustdesk/releases/download/$LATEST_VERSION/rustdesk-$LATEST_VERSION-x86_64.deb
+
+# Install package
+dpkg -i rustdesk-$LATEST_VERSION-x86_64.deb
+
+# Cleanup
+rm -f rustdesk-$LATEST_VERSION-x86_64.deb

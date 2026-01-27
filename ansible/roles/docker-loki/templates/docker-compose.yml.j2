@@ -1,0 +1,17 @@
+services:
+  loki:
+    container_name: loki
+    image: grafana/loki:3.6.4
+    restart: always
+    volumes:
+      - {{ DOCKER_VOLUMES_ROOT }}/loki/config:/etc/loki
+      - {{ DOCKER_VOLUMES_ROOT }}/loki/data:/var/loki
+    command: -config.file=/etc/loki/config.yaml
+    networks:
+      - proxy
+    ports:
+      - 3100:3100
+
+networks:
+  proxy:
+    external: true

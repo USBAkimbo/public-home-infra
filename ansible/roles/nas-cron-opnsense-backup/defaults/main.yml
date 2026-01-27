@@ -1,0 +1,5 @@
+OPNSENSE_IP: "10.10.3.254"
+OPNSENSE_BACKUP_PATH: "/mnt/ssd/opnsense-backups"
+OPNSENSE_BACKUP_API_KEY: Set in main playbook
+OPNSENSE_BACKUP_API_SECRET: Set in main playbook
+OPNSENSE_BACKUP_PASSWORD: Set in main playbook

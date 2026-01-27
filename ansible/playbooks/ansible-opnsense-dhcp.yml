@@ -1,0 +1,4 @@
+- hosts: firewalls
+  become: yes
+  roles:
+    - roles/opnsense-dhcp-failover

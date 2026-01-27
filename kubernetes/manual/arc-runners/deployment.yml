@@ -1,0 +1,63 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: arc-controller
+  namespace: argocd
+spec:
+  project: default
+  source:
+    chart: gha-runner-scale-set-controller
+    repoURL: ghcr.io/actions/actions-runner-controller-charts
+    targetRevision: 0.9.3  # Use latest stable version
+    helm:
+      releaseName: arc
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: arc-systems
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+---
+# ArgoCD Application for ARC Runner Scale Set
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: arc-runner-set
+  namespace: argocd
+spec:
+  project: default
+  source:
+    chart: gha-runner-scale-set
+    repoURL: ghcr.io/actions/actions-runner-controller-charts
+    targetRevision: 0.9.3  # Use latest stable version
+    helm:
+      releaseName: arc-runner-set
+      parameters:
+        - name: githubConfigUrl
+          value: "https://github.com/<YOUR_ORG_OR_REPO>"  # Update this
+        - name: githubConfigSecret.github_token
+          value: ""  # Leave empty - we'll use existing secret
+        - name: githubConfigSecret
+          value: "github-pat-secret"
+        - name: maxRunners
+          value: "10"
+        - name: minRunners
+          value: "0"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: arc-runners
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+  ignoreDifferences:
+    - group: ""
+      kind: Secret
+      name: github-pat-secret
+      jsonPointers:
+        - /data

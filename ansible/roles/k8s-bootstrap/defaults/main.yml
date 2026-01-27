@@ -1,0 +1,7 @@
+CLOUDFLARE_EMAIL: "77cla77@gmail.com"
+CLOUDFLARE_API_TOKEN: # define in playbook
+K8S_POD_CIDR: "10.201.0.0/16" # Pods will use this network
+K8S_INTERFACE_NAMES: "^ens.*" # For eth0 use ^eth.*
+K8S_LB_IP: "10.10.5.10" # Set your DNS records to resolve to this
+K8S_DNS_WILDCARD: "*.greenappleton.com" # Apps are under *.domain.com
+K8S_DNS_HOSTS: "10.10.9.1 10.10.9.2" # Your DNS servers that the Talos hosts use

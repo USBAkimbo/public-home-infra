@@ -38,8 +38,8 @@
     src: fluent-bit.conf.j2
     dest: /etc/fluent-bit/fluent-bit.conf
 
-- name: Start and enable fluent-bit service
+- name: Disable and stop fluent-bit service
   ansible.builtin.systemd:
     name: fluent-bit
-    state: restarted
-    enabled: yes
+    state: stopped
+    enabled: no

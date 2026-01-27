@@ -1,0 +1,6 @@
+- name: Copy over script
+  ansible.builtin.copy:
+    src: 50-dhcp
+    dest: /usr/local/etc/rc.syshook.d/carp/50-dhcp
+    mode: "755"
+    

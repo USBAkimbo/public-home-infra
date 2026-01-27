@@ -1,0 +1,34 @@
+- name: Create Loki directory
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "770"
+    owner: "10001"
+    group: "10001"
+  loop:
+    - "{{ DOCKER_VOLUMES_ROOT }}/loki/config"
+    - "{{ DOCKER_VOLUMES_ROOT }}/loki/data"
+
+- name: Copy over config.yaml
+  ansible.builtin.copy:
+    src: config.yaml
+    dest: "{{ DOCKER_VOLUMES_ROOT }}/loki/config/config.yaml"
+    mode: "770"
+    owner: "10001"
+    group: "10001"
+
+- name: Copy over docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ DOCKER_VOLUMES_ROOT }}/loki/docker-compose.yml"
+    mode: "770"
+
+- name: Start compose stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ DOCKER_VOLUMES_ROOT }}/loki"
+    project_name: loki
+
+- name: Cleanup compose file
+  ansible.builtin.file:
+    path: "{{ DOCKER_VOLUMES_ROOT }}/loki/docker-compose.yml"
+    state: absent

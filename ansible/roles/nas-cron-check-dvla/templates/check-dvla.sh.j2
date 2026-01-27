@@ -1,0 +1,102 @@
+#!/bin/bash
+
+# ================= CONFIGURATION =================
+# 1. ENTER YOUR DETAILS
+LICENCE_NUM={{ DVLA_LICENCE_NUM }}
+NI_NUM={{ DVLA_NI_NUM }}
+POST_CODE={{ DVLA_POST_CODE }}
+WEBHOOK_URL={{ DVLA_WEBHOOK_URL }}
+DEBUG_HTML_FILE_PATH={{ DVLA_DEBUG_HTML_FILE_PATH }}
+
+# 3. FORM FIELD NAMES
+FIELD_LICENCE="wizard_view_driving_licence_enter_details[driving_licence_number]" 
+FIELD_NI="wizard_view_driving_licence_enter_details[national_insurance_number]"
+FIELD_POSTCODE="wizard_view_driving_licence_enter_details[post_code]"
+FIELD_CONSENT="wizard_view_driving_licence_enter_details[data_sharing_confirmation]"
+FIELD_TOKEN_NAME="authenticity_token" 
+CONSENT_VALUE="1" 
+
+# COOKIE ACCEPTANCE FIELDS
+COOKIE_URL="/view_driving_licence/cookie_policy"
+COOKIE_DATA="cookie_consent%5Banalytics%5D=accepted&commit=Save+cookie+settings"
+
+# =================================================
+
+# Create temporary files for cookies and HTML content
+COOKIE_JAR=$(mktemp)
+PAGE_HTML=$(mktemp)
+# RESULT_HTML will now be the static file defined above
+USER_AGENT="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+URL_LOGIN="https://www.viewdrivingrecord.service.gov.uk/driving-record/licence-number"
+URL_POST="https://www.viewdrivingrecord.service.gov.uk/view_driving_licence/save" 
+
+echo "[-] 1. Fetching page to establish session and find token..."
+# Fetch the initial page, store cookies, and save HTML to PAGE_HTML temp file
+curl -s -c "$COOKIE_JAR" -A "$USER_AGENT" "$URL_LOGIN" > "$PAGE_HTML"
+
+# Extract CSRF Token
+CSRF_TOKEN=$(grep -oP "(?<=name=\"$FIELD_TOKEN_NAME\" value=\")[^\"]*" "$PAGE_HTML" | head -n 1)
+
+if [ -z "$CSRF_TOKEN" ]; then
+    echo "[!] FATAL ERROR: Could not find the required token on the first page. Script will fail."
+    rm "$COOKIE_JAR" "$PAGE_HTML"
+    exit 1
+fi
+
+echo "[-] Token found: ${CSRF_TOKEN:0:10}..."
+
+# --- 2. Accept Cookies ---
+echo "[-] 2. Accepting cookie policy..."
+# Use the token and cookie to accept the policy
+curl -s -L -b "$COOKIE_JAR" -c "$COOKIE_JAR" -A "$USER_AGENT" \
+    -X POST \
+    --data-urlencode "$FIELD_TOKEN_NAME=$CSRF_TOKEN" \
+    --data "$COOKIE_DATA" \
+    "https://www.viewdrivingrecord.service.gov.uk$COOKIE_URL" > /dev/null
+
+# --- 3. Submit Licence Details ---
+echo "[-] 3. Submitting details..."
+# Get a fresh token before submitting the main form
+FRESH_TOKEN=$(curl -s -b "$COOKIE_JAR" -A "$USER_AGENT" "$URL_LOGIN" | grep -oP "(?<=name=\"$FIELD_TOKEN_NAME\" value=\")[^\"]*" | head -n 1)
+
+# Submit the details and save the output directly to the static debug file
+curl -s -L -b "$COOKIE_JAR" -c "$COOKIE_JAR" -A "$USER_AGENT" \
+    --data-urlencode "$FIELD_LICENCE=$LICENCE_NUM" \
+    --data-urlencode "$FIELD_NI=$NI_NUM" \
+    --data-urlencode "$FIELD_POSTCODE=$POST_CODE" \
+    --data-urlencode "$FIELD_CONSENT=$CONSENT_VALUE" \
+    --data-urlencode "$FIELD_TOKEN_NAME=$FRESH_TOKEN" \
+    --data-urlencode "commit=View now" \
+    "$URL_POST" > "$DEBUG_HTML_FILE_PATH" # <-- SAVES HERE
+
+# Check the result (Status check remains the same)
+EXPECTED_MSG="Your driving licence has been revoked"
+
+if grep -q "$EXPECTED_MSG" "$DEBUG_HTML_FILE_PATH"; then
+    echo "[-] SUCCESS: Status is still 'Revoked'."
+    
+    # Send Discord Notification (Confirmed Revoked)
+    curl -H "Content-Type: application/json" \
+         -d "{\"content\": \"✅ **DVLA Check**\nStatus confirmed: \`$EXPECTED_MSG\`\"}" \
+         "$WEBHOOK_URL"
+else
+    echo "[!] ALERT: Status is NOT '$EXPECTED_MSG'. It might have changed or login failed."
+    
+    # Fallback to grabbing the page title
+    PAGE_TITLE=$(grep -oP '(?<=<title>).*?(?=</title>)' "$DEBUG_HTML_FILE_PATH" | head -1)
+
+    # Check for the session timed out message in the output
+    if grep -q "Your session has timed out" "$DEBUG_HTML_FILE_PATH"; then
+         PAGE_TITLE="Session Timeout (Cookie acceptance failed or site is actively blocking)"
+    fi
+
+    # Send Discord Notification (Status Changed)
+    curl -H "Content-Type: application/json" \
+         -d "{\"content\": \"🚨 **DVLA STATUS CHANGE DETECTED**\n\n**Expected:** $EXPECTED_MSG\n**Result:** Match not found.\n**Page Title:** $PAGE_TITLE\n\n[Check Website Now]($URL_LOGIN)\"}" \
+         "$WEBHOOK_URL"
+         
+    echo "Saved failed HTML result to $DEBUG_HTML_FILE_PATH for debugging."
+fi
+
+# Cleanup
+rm "$COOKIE_JAR" "$PAGE_HTML"

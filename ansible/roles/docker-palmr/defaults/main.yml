@@ -1,0 +1,6 @@
+DOCKER_VOLUMES_ROOT: /opt/dockervolumes
+IMMICH_URL: immich.greenappleton.com
+IMMICH_UPLOADS: /mnt/ssd/k8s/immich/uploads
+IMMICH_DB_NAME: immich
+IMMICH_DB_USERNAME: postgres
+IMMICH_DB_PASSWORD: postgres

@@ -3,27 +3,23 @@
     path: "{{ item }}"
     state: directory
     mode: "775"
+    group: "1000"
   loop:
-    - /opt/dockervolumes/netboot/config
-    - /opt/dockervolumes/netboot/assets
-
-- name: Set permissions for Netboot
-  ansible.builtin.file:
-    path: /opt
-    state: directory
-    mode: "775"
+    - "{{ DOCKER_VOLUMES_ROOT }}/netboot/config"
+    - "{{ DOCKER_VOLUMES_ROOT }}/netboot/assets"
 
 - name: Copy over docker-compose.yml
   ansible.builtin.template:
     src: docker-compose.yml.j2
-    dest: /opt/dockervolumes/netboot/docker-compose.yml
+    dest: "{{ DOCKER_VOLUMES_ROOT }}/netboot/docker-compose.yml"
     mode: "770"
-
-- name: Create proxy network
-  community.docker.docker_network:
-    name: proxy
 
 - name: Start compose stack
   community.docker.docker_compose_v2:
-    project_src: /opt/dockervolumes/netboot
+    project_src: "{{ DOCKER_VOLUMES_ROOT }}/netboot"
     project_name: netboot
+
+- name: Cleanup compose file
+  ansible.builtin.file:
+    path: "{{ DOCKER_VOLUMES_ROOT }}/netboot/docker-compose.yml"
+    state: absent

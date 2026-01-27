@@ -1,0 +1,3 @@
+ARC_RUNNERS_GITHUB_PAT: # Define in playbook as secret
+GITHUB_CONFIG_URL: https://github.com/usbakimbo/home-infra
+RUNNER_CONTAINER_IMAGE: 77cla77/ansible-actions-runner:latest

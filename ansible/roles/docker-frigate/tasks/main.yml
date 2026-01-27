@@ -18,11 +18,20 @@
     src: config.yml
     dest: "{{ DOCKER_VOLUMES_ROOT }}/frigate/config/config.yml"
     mode: "770"
+  register: CONFIG_COPIED
+
+- name: Restart compose stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ DOCKER_VOLUMES_ROOT }}/frigate"
+    project_name: frigate
+    state: restarted
+  when: CONFIG_COPIED.changed
 
 - name: Start compose stack
   community.docker.docker_compose_v2:
     project_src: "{{ DOCKER_VOLUMES_ROOT }}/frigate"
     project_name: frigate
+    state: present
 
 - name: Cleanup compose file
   ansible.builtin.file:

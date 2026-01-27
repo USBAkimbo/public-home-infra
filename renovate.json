@@ -4,6 +4,17 @@
     "fileMatch": ["kubernetes/apps/.+/.+\\.ya?ml$"]
   },
   "docker-compose": {
-    "fileMatch": ["(^|/)docker-compose[^/]*\\.ya?ml\\.j2$"]
-  }
+    "fileMatch": [
+      "(^|/)docker-compose[^/]*\\.ya?ml$",
+      "(^|/)docker-compose[^/]*\\.ya?ml\\.j2$"
+    ]
+  },
+  "packageRules": [
+    {
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["kopia/kopia"],
+      "versioning": "semver",
+      "allowedVersions": "/^[0-9]{1,3}\\.[0-9]+\\.[0-9]+$/"
+    }
+  ]
 }

@@ -1,0 +1,26 @@
+- name: Ensure arr-reaper folder exists
+  ansible.builtin.file:
+    path: /mnt/ssd/arr-reaper
+    state: directory
+    mode: "700"
+
+- name: Copy over reaper script
+  ansible.builtin.template:
+    src: reaper.sh.j2
+    dest: /mnt/ssd/arr-reaper/reaper.sh
+    mode: "700"
+
+- name: Copy over reaper env
+  ansible.builtin.template:
+    src: .env.j2
+    dest: /mnt/ssd/arr-reaper/.env
+    mode: "700"
+
+- name: Run reaper every hour
+  ansible.builtin.cron:
+    name: reaper
+    cron_file: reaper
+    hour: "*"
+    minute: "0"
+    user: root
+    job: "/mnt/ssd/arr-reaper/reaper.sh"

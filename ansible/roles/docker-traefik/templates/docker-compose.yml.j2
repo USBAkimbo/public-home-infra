@@ -1,6 +1,6 @@
 services:
   traefik:
-    image: traefik
+    image: traefik:v3.6.7
     container_name: traefik
     restart: unless-stopped
     environment:
@@ -26,10 +26,6 @@ services:
       - {{ DOCKER_VOLUMES_ROOT }}/traefik/letsencrypt:/letsencrypt
     networks:
       - proxy
-    logging:
-      driver: gelf
-      options:
-        gelf-address: udp://{{ SEQ_GELF_IP }}:12201
 
 networks:
   proxy:

@@ -1,4 +1,4 @@
 DOCKER_VOLUMES_ROOT: /opt/dockervolumes
 CLOUDFLARE_EMAIL: me@email.com
-CLOUDFLARE_DNS_API_TOKEN: api_key_here
+CLOUDFLARE_DNS_API_TOKEN: Set the token as a secret (not the full account API key)
 SEQ_GELF_IP: 10.10.3.2

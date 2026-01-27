@@ -1,0 +1,17 @@
+services:
+  iventoy:
+    image: garybowers/iventoy:1.0.20-6
+    container_name: iventoy
+    hostname: iventoy
+    restart: always
+    network_mode: host
+    privileged: true
+    volumes:
+      - {{ DOCKER_VOLUMES_ROOT }}/iventoy/data:/iventoy/data
+      - {{ DOCKER_VOLUMES_ROOT }}/iventoy/iso:/iventoy/iso
+    ports: # Ports are not used as network_mode: host is used - they're here for reference
+      - 69:69/udp   # TFTP Server
+      - 10809:10809 # NBD Server
+      - 16000:16000 # iVentoy PXE Service
+    environment:
+      - IVENTOY_AUTO_RUN=1

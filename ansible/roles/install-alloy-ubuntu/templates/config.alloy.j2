@@ -1,0 +1,52 @@
+local.file_match "local_files" {
+  path_targets = [
+    {
+      __path__   = "/var/log/*.log",
+      job        = "varlogs",
+      hostname   = constants.hostname,
+    },
+    {
+      __path__   = "/var/log/*/*.log",
+      job        = "varlogs_recursive",
+      hostname   = constants.hostname,
+    },
+  ]
+  sync_period = "5s"
+}
+
+loki.source.file "log_scrape" {
+  targets = local.file_match.local_files.targets
+  forward_to = [loki.write.loki_server.receiver]
+  tail_from_end = true
+}
+
+loki.source.journal "journal_reader" {
+  forward_to = [loki.relabel.journal_labels.receiver]
+  labels = {
+    job      = "systemd-journal",
+    hostname = constants.hostname,
+  }
+}
+
+loki.relabel "journal_labels" {
+  forward_to = [loki.write.loki_server.receiver]
+
+  rule {
+    source_labels = ["__journal__systemd_unit"]
+    target_label  = "unit"
+  }
+  rule {
+    source_labels = ["__journal_priority_keyword"]
+    target_label  = "level"
+  }
+  rule {
+    source_labels = ["__journal_syslog_identifier"]
+    target_label  = "syslog_identifier"
+  }
+}
+
+loki.write "loki_server" {
+  endpoint {
+    url = "http://{{ LOKI_IP }}:3100/loki/api/v1/push"
+  }
+}

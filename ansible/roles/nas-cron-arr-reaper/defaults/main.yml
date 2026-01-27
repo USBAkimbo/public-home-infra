@@ -1,0 +1,3 @@
+SONARR_API_KEY: # Define in main playbook
+RADARR_API_URL: # Define in main playbook
+DISCORD_WEBHOOK_URL: # Define in main playbook

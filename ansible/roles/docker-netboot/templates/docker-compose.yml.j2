@@ -1,26 +1,26 @@
 services:
   netbootxyz:
-    image: lscr.io/linuxserver/netbootxyz:latest
+    image: lscr.io/linuxserver/netbootxyz:0.7.6
     container_name: netbootxyz
     environment:
       - PUID=1000
       - PGID=1000
       - TZ=Etc/UTC
-      - MENU_VERSION=1.9.9 #optional
+      - MENU_VERSION=2.0.87
       - PORT_RANGE=30000:30010 #optional
       - SUBFOLDER=/ #optional
       - NGINX_PORT=80 #optional
       - WEB_APP_PORT=3000 #optional
     volumes:
-      - /opt/dockervolumes/netboot/config:/config
-      - /opt/dockervolumes/netboot/assets:/assets #optional
+      - {{ DOCKER_VOLUMES_ROOT }}/netboot/config:/config
+      - {{ DOCKER_VOLUMES_ROOT }}/netboot/assets:/assets #optional
     ports:
-      - 69:69/udp
-      - 8080:80 #optional
+      - 69:69/udp # TFTP port for downloading boot menu
+      - 8181:80   # Local web server to serve local ISOs
     restart: unless-stopped
     labels:
       - traefik.enable=true
-      - traefik.http.routers.netboot.rule=Host(`netboot.greenappleton.com`)
+      - traefik.http.routers.netboot.rule=Host(`{{ NETBOOT_FQDN }}`)
       - traefik.http.routers.netboot.entrypoints=websecure
       - traefik.http.routers.netboot.tls.certresolver=cloudflare
       - traefik.http.services.netboot.loadbalancer.server.port=3000

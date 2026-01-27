@@ -1,0 +1,4 @@
+- hosts: test_hosts
+  become: yes
+  roles:
+    - roles/install-alloy-ubuntu

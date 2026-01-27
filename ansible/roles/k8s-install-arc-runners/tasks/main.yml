@@ -1,0 +1,25 @@
+- name: Install ARC controller
+  kubernetes.core.helm:
+    name: arc
+    chart_ref: oci://ghcr.io/actions/actions-runner-controller-charts/gha-runner-scale-set-controller
+    release_namespace: arc-systems
+    create_namespace: true
+    state: present
+
+- name: Install ARC runner scale set
+  kubernetes.core.helm:
+    name: arc-runner-set
+    chart_ref: oci://ghcr.io/actions/actions-runner-controller-charts/gha-runner-scale-set
+    release_namespace: arc-runners
+    create_namespace: true
+    state: present
+    values:
+      githubConfigUrl: "{{ GITHUB_CONFIG_URL }}"
+      githubConfigSecret:
+        github_token: "{{ ARC_RUNNERS_GITHUB_PAT }}"
+      template:
+        spec:
+          containers:
+            - name: runner
+              image: "{{ RUNNER_CONTAINER_IMAGE }}"
+              command: ["/home/runner/run.sh"]

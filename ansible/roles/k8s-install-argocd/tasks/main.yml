@@ -1,0 +1,121 @@
+- name: Create argocd namespace
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: argocd
+
+- name: Wait for argocd namespace to be active
+  kubernetes.core.k8s_info:
+    kind: Namespace
+    name: argocd
+  register: argocd_namespace
+  until: argocd_namespace.resources | length > 0 and argocd_namespace.resources[0].status.phase == "Active"
+  retries: 10
+  delay: 2
+
+- name: Install ArgoCD HA manifest
+  kubernetes.core.k8s:
+    state: present
+    src: https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/ha/install.yaml
+    namespace: argocd
+
+- name: Apply ArgoCD SSH private repo secret
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      immutable: true
+      metadata:
+        name: ssh-private-repo-secret
+        namespace: argocd
+        labels:
+          argocd.argoproj.io/secret-type: repository
+      stringData:
+        type: git
+        url: "{{ ARGOCD_REPO_URL }}"
+        sshPrivateKey: "{{ ARGOCD_SSH_PRIVATE_KEY_B64 | b64decode }}"
+
+- name: Apply ArgoCD ApplicationSet
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: argoproj.io/v1alpha1
+      kind: ApplicationSet
+      metadata:
+        name: apps
+        namespace: argocd
+      spec:
+        goTemplate: true
+        goTemplateOptions:
+          - "missingkey=error"
+        generators:
+          - git:
+              repoURL: "{{ ARGOCD_REPO_URL }}"
+              revision: HEAD
+              directories:
+                - path: kubernetes/apps/*
+        template:
+          metadata:
+            name: "{% raw %}{{.path.basename}}{% endraw %}"
+          spec:
+            project: default
+            source:
+              repoURL: "{{ ARGOCD_REPO_URL }}"
+              targetRevision: HEAD
+              path: "{% raw %}{{.path.path}}{% endraw %}"
+            destination:
+              server: https://kubernetes.default.svc
+              namespace: "{% raw %}{{.path.basename}}{% endraw %}"
+            syncPolicy:
+              automated:
+                allowEmpty: true
+                prune: true
+                selfHeal: true
+              syncOptions:
+                - CreateNamespace=true
+
+- name: Configure ArgoCD server to run insecure for HTTPS to work
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: argocd-cmd-params-cm
+        namespace: argocd
+      data:
+        server.insecure: "true"
+  register: argo_cm
+
+- name: Restart ArgoCD server to apply config
+  ansible.builtin.command: kubectl -n argocd rollout restart deployment/argocd-server 
+  when: argo_cm.changed
+
+- name: Apply ArgoCD HTTPRoute
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: gateway.networking.k8s.io/v1
+      kind: HTTPRoute
+      metadata:
+        name: argocd-server-httproute
+        namespace: argocd
+      spec:
+        parentRefs:
+          - name: cilium-gateway
+            namespace: kube-system
+            sectionName: https
+        hostnames:
+          - "{{ ARGOCD_HOSTNAME }}"
+        rules:
+          - matches:
+              - path:
+                  type: PathPrefix
+                  value: /
+            backendRefs:
+              - name: argocd-server
+                port: 80

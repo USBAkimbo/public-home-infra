@@ -1,0 +1,2 @@
+DOCKER_VOLUMES_ROOT: /opt/dockervolumes
+LOKI_IP: 10.10.3.2

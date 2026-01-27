@@ -1,0 +1,55 @@
+- name: Ensure speedtest folder exists
+  ansible.builtin.file:
+    path: /mnt/ssd/speedtest
+    state: directory
+    mode: "775"
+    owner: "1000"
+    group: "1000"
+
+- name: Copy over speedtest script
+  ansible.builtin.copy:
+    src: speedtest.sh
+    dest: /mnt/ssd/speedtest/speedtest.sh
+    mode: "700"
+    owner: "1000"
+    group: "1000"
+
+- name: Check if librespeed-cli exists
+  ansible.builtin.stat:
+    path: /mnt/ssd/speedtest/librespeed-cli
+  register: librespeed_binary
+
+- name: Download librespeed-cli v1.0.12
+  ansible.builtin.get_url:
+    url: "https://github.com/librespeed/speedtest-cli/releases/download/v1.0.12/librespeed-cli_1.0.12_linux_amd64.tar.gz"
+    dest: /mnt/ssd/speedtest/librespeed-cli.tar.gz
+    mode: "700"
+  when: not librespeed_binary.stat.exists
+
+- name: Extract librespeed-cli
+  ansible.builtin.unarchive:
+    src: /mnt/ssd/speedtest/librespeed-cli.tar.gz
+    dest: /mnt/ssd/speedtest
+    remote_src: yes
+    mode: "700"
+    owner: "1000"
+    group: "1000"
+  when: not librespeed_binary.stat.exists
+
+- name: Clean up downloaded files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /mnt/ssd/speedtest/librespeed-cli.tar.gz
+    - /mnt/ssd/speedtest/LICENSE
+  when: not librespeed_binary.stat.exists
+
+- name: Run a speedtest every 6 hours
+  ansible.builtin.cron:
+    name: speedtest
+    cron_file: speedtest
+    hour: "*/6"
+    minute: "0"
+    user: root
+    job: "/mnt/ssd/speedtest/speedtest.sh"

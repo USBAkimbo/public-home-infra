@@ -1,0 +1,93 @@
+- hosts: firewalls
+  become: yes
+  vars:
+    pve_host: "10.10.4.11"
+    pve_user: "root@pam"
+    pve_password: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          64636230343166613133326531653566333139373637363035363463306162313563663632653134
+          3933316334323933326130613834383030366165613231630a393038643234646665636532316463
+          64633034356532356161653337633631323032306535343965393233313339646235313832396164
+          3637613639333333360a656435383432376331393331653630383439303035653165373762656230
+          65633738666462316636643164363366313333386563643665316665336530613466
+    snap_name: "pre-patch-{{ lookup('pipe', 'date +%Y-%m-%d-%H-%M') }}" # pre-patch-YYYY-MM-DD-HH-MM
+    vmid_map:
+      p-h-opn-01: 107
+      p-h-opn-02: 111
+
+  tasks:
+    - name: Create pre-patch Proxmox snapshots
+      community.proxmox.proxmox_snap:
+        api_host: "{{ pve_host }}"
+        api_user: "{{ pve_user }}"
+        api_password: "{{ pve_password }}"
+        vmid: "{{ vmid_map[inventory_hostname] }}"
+        state: present
+        snapname: "{{ snap_name }}"
+        description: "Pre-patch backup via Ansible"
+      delegate_to: localhost
+      become: false
+
+    - name: Update node 1 and auto-reboot if required
+      ansible.builtin.command: /usr/local/etc/rc.firmware
+      when: inventory_hostname == 'p-h-opn-01'
+      register: firmware_result
+      ignore_errors: yes
+
+    - name: Handle reboot if required
+      when:
+        - inventory_hostname == 'p-h-opn-01'
+        - firmware_result is failed
+      block:
+        - name: Wait for system to go down
+          ansible.builtin.wait_for_connection:
+            timeout: 120
+            sleep: 5
+          ignore_errors: yes
+
+        - name: Wait for system to come back up
+          ansible.builtin.wait_for_connection:
+            delay: 30
+            timeout: 600
+            sleep: 10
+
+        - name: Verify node 1 is responsive
+          ansible.builtin.ping:
+
+    - name: Set node 1 to standby
+      ansible.builtin.command: configctl interface carp_set_status maintenance
+      when: inventory_hostname == 'p-h-opn-01'
+
+    - name: Sleep for 10s to allow node 2 to become active
+      ansible.builtin.pause:
+        seconds: 10
+
+    - name: Update node 2 and auto-reboot if required
+      ansible.builtin.command: /usr/local/etc/rc.firmware
+      when: inventory_hostname == 'p-h-opn-02'
+      register: firmware_result
+      ignore_errors: yes
+
+    - name: Handle reboot if required
+      when:
+        - inventory_hostname == 'p-h-opn-02'
+        - firmware_result is failed
+      block:
+        - name: Wait for system to go down
+          ansible.builtin.wait_for_connection:
+            timeout: 120
+            sleep: 5
+          ignore_errors: yes
+
+        - name: Wait for system to come back up
+          ansible.builtin.wait_for_connection:
+            delay: 30
+            timeout: 600
+            sleep: 10
+
+        - name: Verify node 2 is responsive
+          ansible.builtin.ping:
+
+    - name: Set node 1 to active
+      ansible.builtin.command: configctl interface carp_set_status maintenance
+      when: inventory_hostname == 'p-h-opn-01'

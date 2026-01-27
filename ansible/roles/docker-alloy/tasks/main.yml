@@ -1,0 +1,30 @@
+- name: Create Alloy config folder
+  ansible.builtin.file:
+    path: "{{ DOCKER_VOLUMES_ROOT }}/alloy/config"
+    state: directory
+    mode: "770"
+    owner: "473"
+    group: "473"
+
+- name: Copy over config.alloy
+  ansible.builtin.template:
+    src: config.alloy.j2
+    dest: "{{ DOCKER_VOLUMES_ROOT }}/alloy/config/config.alloy"
+    mode: "770"
+    owner: "473"
+    group: "473"
+
+- name: Copy over docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ DOCKER_VOLUMES_ROOT }}/alloy/docker-compose.yml"
+
+- name: Start compose stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ DOCKER_VOLUMES_ROOT }}/alloy"
+    project_name: alloy
+
+- name: Cleanup compose file
+  ansible.builtin.file:
+    path: "{{ DOCKER_VOLUMES_ROOT }}/alloy/docker-compose.yml"
+    state: absent

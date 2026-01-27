@@ -1,0 +1,5 @@
+- This script is for my "OPNsense Proxmox config with HA" doc
+- Normally you'd have a virtual IP on your WAN side
+- This requires a public /29 network as you need 3 usable IPs
+- Obviously this won't work if you get a single public IPv4 address from your ISP
+- To get around this, we use this module

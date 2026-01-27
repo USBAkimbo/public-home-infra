@@ -1,0 +1,4 @@
+- hosts: media_pc
+  become: yes
+  roles:
+    - roles/cron-rustdesk-update

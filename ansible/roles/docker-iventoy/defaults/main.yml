@@ -1,0 +1,3 @@
+DOCKER_VOLUMES_ROOT: /opt/dockervolumes
+IVENTOY_FQDN: iventoy.greenappleton.com
+SEQ_GELF_IP: 10.10.3.2

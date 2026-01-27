@@ -25,30 +25,34 @@
     command: kopia policy set --global --compression=zstd --keep-hourly=48 --keep-daily=30 --keep-weekly=52 --keep-monthly=24 --keep-annual=3 --keep-latest=0
 
 # Enable this step once for the initial snapshot
-#- name: Set local repo folders to snapshot
-#  community.docker.docker_container_exec:
-#    container: kopia-local
-#    command: kopia snapshot create {{ item }}
-#  loop:
-#    - /mnt/ssd/docker/bazarr
-#    - /mnt/ssd/docker/filebrowser
-#    - /mnt/ssd/docker/frigate
-#    - /mnt/ssd/docker/immich/import
-#    - /mnt/ssd/docker/jellyfin
-#    - /mnt/ssd/docker/prowlarr
-#    - /mnt/ssd/docker/radarr
-#    - /mnt/ssd/docker/sabnzbd
-#    - /mnt/ssd/docker/sonarr
-#    - /mnt/ssd/docker/syncthing
-#    - /mnt/ssd/docker/transmission
-#    - /mnt/ssd/docker/zabbix/db/backups
-#    - /mnt/ssd/docs
-#    - /mnt/ssd/keepass
-#    - /mnt/ssd/media-files-list
-#    - /mnt/ssd/music
-#    - /mnt/ssd/opnsense-backups
+- name: Set local repo folders to snapshot
+  community.docker.docker_container_exec:
+    container: kopia-local
+    command: kopia snapshot create {{ item }}
+  loop:
+    - /mnt/ssd/docker/bazarr
+    - /mnt/ssd/docker/frigate
+    - /mnt/ssd/docker/forgejo
+    - /mnt/ssd/docker/grafana
+    - /mnt/ssd/docker/home-assistant
+    - /mnt/ssd/docker/immich/import
+    - /mnt/ssd/docker/jellyfin
+    - /mnt/ssd/docker/prowlarr
+    - /mnt/ssd/docker/radarr
+    - /mnt/ssd/docker/sabnzbd
+    - /mnt/ssd/docker/sonarr
+    - /mnt/ssd/docker/syncthing
+    - /mnt/ssd/docker/transmission
+    - /mnt/ssd/docker/unifi/config
+    - /mnt/ssd/docker/zabbix/db/backups
+    - /mnt/ssd/docs
+    - /mnt/ssd/keepass
+    - /mnt/ssd/media-files-list
+    - /mnt/ssd/music
+    - /mnt/ssd/opnsense-backups
+    - /mnt/ssd/truenas-config-backups
 
-- name: Check Kopia repository status
+- name: Check B2 repo status
   community.docker.docker_container_exec:
     container: kopia-b2
     command: kopia repo status
@@ -68,25 +72,29 @@
   when: kopia_repo_status_result.rc != 0 or "no repository is connected" in kopia_repo_status_result.stderr | default('')
 
 # Enable this step once for the initial snapshot
-#- name: Set B2 folders to snapshot
-#  community.docker.docker_container_exec:
-#    container: kopia-b2
-#    command: kopia snapshot create {{ item }}
-#  loop:
-#    - /mnt/ssd/docker/bazarr
-#    - /mnt/ssd/docker/filebrowser
-#    - /mnt/ssd/docker/frigate
-#    - /mnt/ssd/docker/immich/import
-#    - /mnt/ssd/docker/jellyfin
-#    - /mnt/ssd/docker/prowlarr
-#    - /mnt/ssd/docker/radarr
-#    - /mnt/ssd/docker/sabnzbd
-#    - /mnt/ssd/docker/sonarr
-#    - /mnt/ssd/docker/syncthing
-#    - /mnt/ssd/docker/transmission
-#    - /mnt/ssd/docker/zabbix/db/backups
-#    - /mnt/ssd/docs
-#    - /mnt/ssd/keepass
-#    - /mnt/ssd/media-files-list
-#    - /mnt/ssd/music
-#    - /mnt/ssd/opnsense-backups
+- name: Set B2 folders to snapshot
+  community.docker.docker_container_exec:
+    container: kopia-b2
+    command: kopia snapshot create {{ item }}
+  loop:
+    - /mnt/ssd/docker/bazarr
+    - /mnt/ssd/docker/frigate
+    - /mnt/ssd/docker/forgejo
+    - /mnt/ssd/docker/grafana
+    - /mnt/ssd/docker/home-assistant
+    - /mnt/ssd/docker/immich/import
+    - /mnt/ssd/docker/jellyfin
+    - /mnt/ssd/docker/prowlarr
+    - /mnt/ssd/docker/radarr
+    - /mnt/ssd/docker/sabnzbd
+    - /mnt/ssd/docker/sonarr
+    - /mnt/ssd/docker/syncthing
+    - /mnt/ssd/docker/transmission
+    - /mnt/ssd/docker/unifi/config
+    - /mnt/ssd/docker/zabbix/db/backups
+    - /mnt/ssd/docs
+    - /mnt/ssd/keepass
+    - /mnt/ssd/media-files-list
+    - /mnt/ssd/music
+    - /mnt/ssd/opnsense-backups
+    - /mnt/ssd/truenas-config-backups

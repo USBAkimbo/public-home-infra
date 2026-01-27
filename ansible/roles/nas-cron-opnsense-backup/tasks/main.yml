@@ -1,0 +1,32 @@
+- name: Ensure backup path exists with correct permissions
+  ansible.builtin.file:
+    path: "{{ OPNSENSE_BACKUP_PATH }}"
+    state: directory
+    mode: "775"
+
+- name: Ensure backups path exists with correct permissions
+  ansible.builtin.file:
+    path: "{{ OPNSENSE_BACKUP_PATH }}/backups" 
+    state: directory
+    mode: "775"
+
+- name: Ensure backup script path exists with correct permissions
+  ansible.builtin.file:
+    path: "{{ OPNSENSE_BACKUP_PATH }}/script" 
+    state: directory
+    mode: "700"
+
+- name: Copy over backup script
+  ansible.builtin.template:
+    src: backup-script.sh.j2
+    dest: "{{ OPNSENSE_BACKUP_PATH }}/script/opnsense-backup.sh"
+    mode: "700"
+
+- name: Create backup every day at 00:00
+  ansible.builtin.cron:
+    name: opnsense-config-backup
+    cron_file: opnsense-config-backup
+    hour: 0
+    minute: 0
+    user: root
+    job: "{{ OPNSENSE_BACKUP_PATH }}/script/opnsense-backup.sh"

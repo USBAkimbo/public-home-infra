@@ -1,0 +1,88 @@
+#!/usr/local/bin/php
+
+# This files lives in
+# /usr/local/etc/rc.syshook.d/carp/50-dhcp
+# Also set permissions on the file
+# chmod 755 /usr/local/etc/rc.syshook.d/carp/50-dhcp
+
+<?php
+
+require_once("config.inc");
+require_once("interfaces.inc");
+require_once("util.inc");
+require_once("plugins.inc");
+
+$subsystem = !empty($argv[1]) ? $argv[1] : '';
+$type = !empty($argv[2]) ? $argv[2] : '';
+
+if ($type != 'MASTER' && $type != 'BACKUP') {
+    log_error("Carp '$type' event unknown from source '{$subsystem}'");
+    exit(1);
+}
+
+if (!strstr($subsystem, '@')) {
+    log_error("Carp '$type' event triggered from wrong source '{$subsystem}'");
+    exit(1);
+}
+
+$ifkey = 'wan';
+$realif = get_real_interface($ifkey);
+
+if (empty($realif)) {
+    log_error("Could not determine real interface for '$ifkey'");
+    exit(1);
+}
+
+if ($type === "MASTER") {
+    log_error("CARP MASTER event: Enabling WAN interface '$ifkey' ($realif)");
+    
+    // Bring the interface up at OS level
+    mwexec("/sbin/ifconfig {$realif} up");
+    
+    // Small delay to ensure interface is ready
+    sleep(2);
+    
+    // Explicitly request DHCP renewal if interface uses DHCP
+    if (!empty($config['interfaces'][$ifkey]['ipaddr']) && 
+        $config['interfaces'][$ifkey]['ipaddr'] == 'dhcp') {
+        
+        log_error("Requesting DHCP renewal on '$ifkey' ($realif)");
+        
+        // Kill any existing dhclient process for this interface
+        mwexec("/bin/pkill -f 'dhclient: {$realif}'");
+        
+        // Small delay after killing dhclient
+        sleep(1);
+        
+        // Restart DHCP client
+        interface_dhcp_configure($ifkey);
+    }
+    
+} else {
+    log_error("CARP BACKUP event: Disabling WAN interface '$ifkey' ($realif)");
+    
+    // Release DHCP lease if applicable
+    if (!empty($config['interfaces'][$ifkey]['ipaddr']) && 
+        $config['interfaces'][$ifkey]['ipaddr'] == 'dhcp') {
+        
+        log_error("Releasing DHCP lease on '$ifkey' ($realif)");
+        
+        // Kill dhclient to release the lease
+        mwexec("/bin/pkill -f 'dhclient: {$realif}'");
+        
+        // Explicitly release DHCP lease
+        mwexec("/sbin/dhclient -r {$realif}");
+    }
+    
+    // Bring the interface down at OS level
+    mwexec("/sbin/ifconfig {$realif} down");
+    
+    // Clear any remaining IP configuration
+    mwexec("/sbin/ifconfig {$realif} inet 0.0.0.0 delete 2>/dev/null");
+    mwexec("/sbin/ifconfig {$realif} inet6 ::1 delete 2>/dev/null");
+}
+
+// Signal any plugins about the interface change
+plugins_configure('interface', false, array($ifkey));
+
+log_error("CARP WAN failover script completed for '$type' state");

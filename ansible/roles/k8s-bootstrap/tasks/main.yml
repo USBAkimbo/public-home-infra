@@ -1,0 +1,343 @@
+- name: Check if Cilium is already installed
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Pod
+    namespace: kube-system
+    label_selectors:
+      - k8s-app=cilium
+  register: cilium_check
+
+- name: Add Cilium Helm repository
+  kubernetes.core.helm_repository:
+    name: cilium
+    repo_url: https://helm.cilium.io/
+  when: cilium_check.resources | length == 0
+
+- name: Install Cilium with kube-proxy replacement and L2 announcements
+  kubernetes.core.helm:
+    name: cilium
+    chart_ref: cilium/cilium
+    chart_version: 1.18.5
+    release_namespace: kube-system
+    create_namespace: false
+    wait: true
+    wait_timeout: 10m
+    values:
+      kubeProxyReplacement: true
+      k8sServiceHost: "localhost"
+      k8sServicePort: 7445
+      ipam:
+        mode: kubernetes
+      routingMode: native
+      ipv4NativeRoutingCIDR: "{{ K8S_POD_CIDR }}"
+      autoDirectNodeRoutes: true
+      ipv4:
+        enabled: true
+      ipv6:
+        enabled: false
+      securityContext:
+        capabilities:
+          ciliumAgent:
+            - CHOWN
+            - KILL
+            - NET_ADMIN
+            - NET_RAW
+            - IPC_LOCK
+            - SYS_ADMIN
+            - SYS_RESOURCE
+            - DAC_OVERRIDE
+            - FOWNER
+            - SETGID
+            - SETUID
+          cleanCiliumState:
+            - NET_ADMIN
+            - SYS_ADMIN
+            - SYS_RESOURCE
+      cgroup:
+        autoMount:
+          enabled: false
+        hostRoot: /sys/fs/cgroup
+      gatewayAPI:
+        enabled: true
+        enableAlpn: true
+        enableAppProtocol: true
+      l2announcements:
+        enabled: true
+        leaseDuration: "3s"
+        leaseRenewDeadline: "1s"
+        leaseRetryPeriod: "500ms"
+      externalIPs:
+        enabled: true
+      operator:
+        replicas: 1
+      bpf:
+        masquerade: true
+  when: cilium_check.resources | length == 0
+  register: cilium_install
+
+- name: Wait for Cilium pods to be ready
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Pod
+    namespace: kube-system
+    label_selectors:
+      - k8s-app=cilium
+    wait: true
+    wait_condition:
+      type: Ready
+      status: true
+    wait_timeout: 300
+  when: cilium_install.changed
+  retries: 3
+  delay: 10
+
+- name: Wait for Cilium operator to be ready
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Pod
+    namespace: kube-system
+    label_selectors:
+      - name=cilium-operator
+    wait: true
+    wait_condition:
+      type: Ready
+      status: true
+    wait_timeout: 300
+  when: cilium_install.changed
+  retries: 3
+  delay: 10
+
+- name: Install Gateway API CRDs - Experimental (includes GRPCRoute required by Cilium)
+  kubernetes.core.k8s:
+    state: present
+    src: https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.1/experimental-install.yaml
+
+- name: Wait for Gateway API CRDs to be established
+  kubernetes.core.k8s_info:
+    api_version: apiextensions.k8s.io/v1
+    kind: CustomResourceDefinition
+    name: "{{ item }}"
+    wait: true
+    wait_condition:
+      type: Established
+      status: true
+    wait_timeout: 60
+  loop:
+    - gatewayclasses.gateway.networking.k8s.io
+    - gateways.gateway.networking.k8s.io
+    - httproutes.gateway.networking.k8s.io
+    - grpcroutes.gateway.networking.k8s.io
+
+- name: Apply Cilium L2 Announcement Policy
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: cilium.io/v2alpha1
+      kind: CiliumL2AnnouncementPolicy
+      metadata:
+        name: default-l2-policy
+        namespace: kube-system
+      spec:
+        loadBalancerIPs: true
+        interfaces:
+          - "{{ K8S_INTERFACE_NAMES }}"
+        nodeSelector:
+          matchLabels:
+            kubernetes.io/os: linux
+
+- name: Apply Cilium LoadBalancer IP Pool for VIP
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: cilium.io/v2alpha1
+      kind: CiliumLoadBalancerIPPool
+      metadata:
+        name: vip-pool
+        namespace: kube-system
+      spec:
+        blocks:
+          - start: "{{ K8S_LB_IP }}"
+            stop: "{{ K8S_LB_IP }}"
+
+- name: Create cert-manager namespace
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: cert-manager
+
+- name: Wait for cert-manager namespace to be active
+  kubernetes.core.k8s_info:
+    kind: Namespace
+    name: cert-manager
+  register: cert_manager_namespace
+  until: cert_manager_namespace.resources | length > 0 and cert_manager_namespace.resources[0].status.phase == "Active"
+  retries: 10
+  delay: 2
+
+- name: Install cert-manager
+  kubernetes.core.k8s:
+    state: present
+    src: https://github.com/cert-manager/cert-manager/releases/download/v1.19.2/cert-manager.yaml
+    namespace: cert-manager
+
+- name: Wait for cert-manager to be ready
+  kubernetes.core.k8s_info:
+    kind: Deployment
+    name: cert-manager
+    namespace: cert-manager
+  register: cert_manager_deployment
+  until: cert_manager_deployment.resources | length > 0 and cert_manager_deployment.resources[0].status.readyReplicas | default(0) > 0
+  retries: 30
+  delay: 5
+
+- name: Create Cloudflare API token secret
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: cloudflare-api-token-secret
+        namespace: cert-manager
+      type: Opaque
+      stringData:
+        api-token: "{{ CLOUDFLARE_API_TOKEN }}"
+
+- name: Create ClusterIssuer for Let's Encrypt with Cloudflare DNS
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: cert-manager.io/v1
+      kind: ClusterIssuer
+      metadata:
+        name: cloudflare-issuer
+      spec:
+        acme:
+          email: "{{ CLOUDFLARE_EMAIL }}"
+          # server: https://acme-staging-v02.api.letsencrypt.org/directory # Staging
+          server: https://acme-v02.api.letsencrypt.org/directory # Prod
+          privateKeySecretRef:
+            name: cloudflare-issuer-private-key
+          solvers:
+            - dns01:
+                cloudflare:
+                  apiTokenSecretRef:
+                    name: cloudflare-api-token-secret
+                    key: api-token
+
+- name: Create wildcard certificate for *.domain.com
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: cert-manager.io/v1
+      kind: Certificate
+      metadata:
+        name: wildcard-cert
+        namespace: kube-system
+      spec:
+        secretName: wildcard-cert
+        issuerRef:
+          name: cloudflare-issuer
+          kind: ClusterIssuer
+        dnsNames:
+          - "{{ K8S_DNS_WILDCARD }}"
+
+- name: Create GatewayClass for Cilium
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: gateway.networking.k8s.io/v1
+      kind: GatewayClass
+      metadata:
+        name: cilium
+      spec:
+        controllerName: io.cilium/gateway-controller
+
+- name: Create Gateway with LoadBalancer IP
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: gateway.networking.k8s.io/v1
+      kind: Gateway
+      metadata:
+        name: cilium-gateway
+        namespace: kube-system
+        annotations:
+          io.cilium/lb-ipam-ips: "{{ K8S_LB_IP }}"
+      spec:
+        gatewayClassName: cilium
+        listeners:
+          - name: http
+            protocol: HTTP
+            port: 80
+          - name: https
+            protocol: HTTPS
+            port: 443
+            hostname: "{{ K8S_DNS_WILDCARD }}"
+            tls:
+              mode: Terminate
+              certificateRefs:
+                - kind: Secret
+                  name: wildcard-cert
+            allowedRoutes:
+              namespaces:
+                from: All
+
+- name: Wait for Gateway to be ready
+  kubernetes.core.k8s_info:
+    api_version: gateway.networking.k8s.io/v1
+    kind: Gateway
+    name: cilium-gateway
+    namespace: kube-system
+    wait: true
+    wait_timeout: 120
+
+- name: Configure CoreDNS to use Talos DNS servers
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: coredns
+        namespace: kube-system
+      data:
+        Corefile: |
+          .:53 {
+              errors
+              health {
+                lameduck 5s
+              }
+              ready
+              kubernetes cluster.local in-addr.arpa ip6.arpa {
+                pods insecure
+                fallthrough in-addr.arpa ip6.arpa
+                ttl 30
+              }
+              prometheus :9153
+              forward . {{ K8S_DNS_HOSTS }} {
+                max_concurrent 1000
+              }
+              cache 30
+              loop
+              reload
+              loadbalance
+          }
+  register: coredns
+
+- name: Restart CoreDNS to apply changes
+  ansible.builtin.command: kubectl rollout restart deployment coredns -n kube-system
+  when: coredns.changed
+
+- name: Wait for CoreDNS to be ready
+  kubernetes.core.k8s_info:
+    kind: Deployment
+    name: coredns
+    namespace: kube-system
+  register: coredns_deployment
+  until: coredns_deployment.resources | length > 0 and coredns_deployment.resources[0].status.readyReplicas | default(0) > 0
+  retries: 30
+  delay: 5

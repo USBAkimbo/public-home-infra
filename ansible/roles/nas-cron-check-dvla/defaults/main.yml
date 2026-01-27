@@ -1,0 +1,5 @@
+DVLA_LICENCE_NUM: Your_driving_license_number
+DVLA_NI_NUM: Your_NI_number
+DVLA_POST_CODE: Your_post_code
+DVLA_WEBHOOK_URL: Discord_webhook_url
+DVLA_DEBUG_HTML_FILE_PATH: /mnt/ssd/check-dvla/latest_dvla_result.html

@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ppngx-web
+  labels:
+    app: ppngx-web
+spec:
+  selector:
+    matchLabels:
+      app: ppngx-web
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: ppngx-web
+    spec:
+      volumes:
+      - name: ppngx-data
+        nfs:
+          path: /mnt/ssd/k8s/paperless-ngx/ppngx-data
+          server: 10.10.3.2
+      - name: ppngx-media
+        nfs:
+          path: /mnt/ssd/k8s/paperless-ngx/ppngx-media
+          server: 10.10.3.2
+      - name: ppngx-export
+        nfs:
+          path: /mnt/ssd/k8s/paperless-ngx/ppngx-export
+          server: 10.10.3.2
+      - name: ppngx-consume
+        nfs:
+          path: /mnt/ssd/k8s/paperless-ngx/ppngx-consume
+          server: 10.10.3.2
+
+      restartPolicy: Always
+      dnsConfig:
+        options:
+        - name: ndots
+          value: "1"
+      containers:
+      - name: ppngx-web
+        image: ghcr.io/paperless-ngx/paperless-ngx:2.18.4
+        resources:
+          requests:
+            cpu: 100m
+            memory: 200m
+
+        env:
+          - name: PAPERLESS_REDIS
+            value: redis://ppngx-broker:6379
+          - name: PAPERLESS_DBHOST
+            value: ppngx-db
+          - name: PAPERLESS_URL
+            value: https://paperless.greenappleton.com
+          - name: PAPERLESS_FILENAME_FORMAT
+            value: "{{ created_year }}/{{ correspondent }}/{{ original_name }}"
+          - name: USERMAP_UID
+            value: "1000"
+          - name: USERMAP_GID
+            value: "1000"
+
+        ports:
+          - containerPort: 8000
+            name: ppngx-web
+
+        volumeMounts:
+        - mountPath: /usr/src/paperless/data
+          name: ppngx-data
+        - mountPath: /usr/src/paperless/media
+          name: ppngx-media
+        - mountPath: /usr/src/paperless/export
+          name: ppngx-export
+        - mountPath: /usr/src/paperless/consume
+          name: ppngx-consume
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: ppngx-web
+  labels:
+    app: ppngx-web
+spec:
+  type: ClusterIP
+  ports:
+  - name: ppngx-web
+    port: 8000
+    targetPort: 8000
+  selector:
+    app: ppngx-web

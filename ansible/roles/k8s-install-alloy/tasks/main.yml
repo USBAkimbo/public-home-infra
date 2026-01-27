@@ -1,0 +1,310 @@
+- name: Create alloy namespace with privileged PodSecurity
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: alloy
+        labels:
+          pod-security.kubernetes.io/enforce: privileged
+          pod-security.kubernetes.io/audit: privileged
+          pod-security.kubernetes.io/warn: privileged
+
+- name: Install Grafana Alloy
+  kubernetes.core.helm:
+    name: alloy
+    chart_ref: grafana/alloy
+    chart_version: 1.5.1
+    release_namespace: alloy
+    create_namespace: false
+    state: present
+    values:
+      nameOverride: null
+      namespaceOverride: null
+      fullnameOverride: null
+      
+      global:
+        image:
+          registry: ""
+          pullSecrets: []
+        podSecurityContext: {}
+      
+      crds:
+        create: true
+      
+      alloy:
+        configMap:
+          create: true
+          content: |
+            logging {
+              level = "info"
+              format = "logfmt"
+            }
+
+            // Discover all pods in the cluster
+            discovery.kubernetes "pods" {
+              role = "pod"
+            }
+
+            // Relabel to add standard Kubernetes labels
+            discovery.relabel "pods" {
+              targets = discovery.kubernetes.pods.targets
+
+              // Add namespace label
+              rule {
+                source_labels = ["__meta_kubernetes_namespace"]
+                target_label  = "namespace"
+              }
+
+              // Add pod name label
+              rule {
+                source_labels = ["__meta_kubernetes_pod_name"]
+                target_label  = "pod"
+              }
+
+              // Add container name label
+              rule {
+                source_labels = ["__meta_kubernetes_pod_container_name"]
+                target_label  = "container"
+              }
+
+              // Add job label
+              rule {
+                replacement  = "alloy-k8s"
+                target_label = "job"
+              }
+
+              // Set the path to the log file
+              rule {
+                source_labels = ["__meta_kubernetes_pod_uid", "__meta_kubernetes_pod_container_name"]
+                separator     = "/"
+                target_label  = "__path__"
+                replacement   = "/var/log/pods/*$1/*.log"
+              }
+            }
+
+            // Read pod logs from the discovered targets
+            loki.source.kubernetes "pods" {
+              targets    = discovery.relabel.pods.output
+              forward_to = [loki.write.loki.receiver]
+            }
+
+            // Ship logs to your Loki instance
+            loki.write "loki" {
+              endpoint {
+                url = "http://10.10.3.2:3100/loki/api/v1/push"
+              }
+            }
+          name: null
+          key: null
+        
+        clustering:
+          enabled: false
+          name: ""
+          portName: http
+        
+        stabilityLevel: "generally-available"
+        storagePath: /tmp/alloy
+        enableHttpServerPort: true
+        listenAddr: 0.0.0.0
+        listenPort: 12345
+        listenScheme: HTTP
+        initialDelaySeconds: 10
+        timeoutSeconds: 1
+        uiPathPrefix: /
+        enableReporting: true
+        extraEnv: []
+        envFrom: []
+        extraArgs: []
+        extraPorts: []
+        hostAliases: []
+        
+        mounts:
+          varlog: true
+          dockercontainers: true
+          extra: []
+        
+        securityContext: {}
+        resources: {}
+        lifecycle: {}
+        livenessProbe: {}
+      
+      image:
+        registry: "docker.io"
+        repository: grafana/alloy
+        tag: null
+        digest: null
+        pullPolicy: IfNotPresent
+        pullSecrets: []
+      
+      rbac:
+        create: true
+        namespaces: []
+        rules:
+          - apiGroups: ["", "discovery.k8s.io", "networking.k8s.io"]
+            resources: ["endpoints", "endpointslices", "ingresses", "pods", "services"]
+            verbs: ["get", "list", "watch"]
+          - apiGroups: [""]
+            resources: ["pods", "pods/log", "namespaces"]
+            verbs: ["get", "list", "watch"]
+          - apiGroups: ["monitoring.grafana.com"]
+            resources: ["podlogs"]
+            verbs: ["get", "list", "watch"]
+          - apiGroups: ["monitoring.coreos.com"]
+            resources: ["prometheusrules"]
+            verbs: ["get", "list", "watch"]
+          - apiGroups: ["monitoring.coreos.com"]
+            resources: ["alertmanagerconfigs"]
+            verbs: ["get", "list", "watch"]
+          - apiGroups: ["monitoring.coreos.com"]
+            resources: ["podmonitors", "servicemonitors", "probes", "scrapeconfigs"]
+            verbs: ["get", "list", "watch"]
+          - apiGroups: [""]
+            resources: ["events"]
+            verbs: ["get", "list", "watch"]
+          - apiGroups: [""]
+            resources: ["configmaps", "secrets"]
+            verbs: ["get", "list", "watch"]
+          - apiGroups: ["apps", "extensions"]
+            resources: ["replicasets"]
+            verbs: ["get", "list", "watch"]
+        clusterRules:
+          - apiGroups: [""]
+            resources: ["nodes", "nodes/proxy", "nodes/metrics"]
+            verbs: ["get", "list", "watch"]
+          - nonResourceURLs: ["/metrics"]
+            verbs: ["get"]
+      
+      serviceAccount:
+        create: true
+        additionalLabels: {}
+        annotations: {}
+        name: null
+        automountServiceAccountToken: true
+      
+      configReloader:
+        enabled: true
+        image:
+          registry: "quay.io"
+          repository: prometheus-operator/prometheus-config-reloader
+          tag: v0.87.1
+          digest: ""
+        customArgs: []
+        resources:
+          requests:
+            cpu: "10m"
+            memory: "50Mi"
+        securityContext: {}
+      
+      controller:
+        type: 'daemonset'
+        replicas: 1
+        extraLabels: {}
+        extraAnnotations: {}
+        parallelRollout: true
+        minReadySeconds: 10
+        hostNetwork: false
+        hostPID: false
+        dnsPolicy: ClusterFirst
+        terminationGracePeriodSeconds: null
+        updateStrategy: {}
+        nodeSelector: {}
+        tolerations: []
+        topologySpreadConstraints: []
+        priorityClassName: ''
+        podAnnotations: {}
+        podLabels: {}
+        podDisruptionBudget:
+          enabled: false
+          minAvailable: null
+          maxUnavailable: null
+        enableStatefulSetAutoDeletePVC: false
+        autoscaling:
+          enabled: false
+          minReplicas: 1
+          maxReplicas: 5
+          targetCPUUtilizationPercentage: 0
+          targetMemoryUtilizationPercentage: 80
+          scaleDown:
+            policies: []
+            selectPolicy: Max
+            stabilizationWindowSeconds: 300
+          scaleUp:
+            policies: []
+            selectPolicy: Max
+            stabilizationWindowSeconds: 0
+          horizontal:
+            enabled: false
+            minReplicas: 1
+            maxReplicas: 5
+            targetCPUUtilizationPercentage: 0
+            targetMemoryUtilizationPercentage: 80
+            scaleDown:
+              policies: []
+              selectPolicy: Max
+              stabilizationWindowSeconds: 300
+            scaleUp:
+              policies: []
+              selectPolicy: Max
+              stabilizationWindowSeconds: 0
+          vertical:
+            enabled: false
+            recommenders: []
+            resourcePolicy:
+              containerPolicies:
+                - containerName: alloy
+                  controlledResources:
+                    - cpu
+                    - memory
+                  controlledValues: "RequestsAndLimits"
+                  maxAllowed: {}
+                  minAllowed: {}
+            updatePolicy: {}
+        affinity: {}
+        volumes:
+          extra: []
+        volumeClaimTemplates: []
+        initContainers: []
+        extraContainers: []
+      
+      networkPolicy:
+        enabled: false
+        flavor: kubernetes
+        policyTypes:
+          - Ingress
+          - Egress
+        ingress:
+          - {}
+        egress:
+          - {}
+      
+      service:
+        enabled: true
+        type: ClusterIP
+        nodePort: 31128
+        clusterIP: ''
+        internalTrafficPolicy: Cluster
+        annotations: {}
+      
+      serviceMonitor:
+        enabled: false
+        additionalLabels: {}
+        interval: ""
+        metricRelabelings: []
+        tlsConfig: {}
+        relabelings: []
+      
+      ingress:
+        enabled: false
+        annotations: {}
+        labels: {}
+        path: /
+        faroPort: 12347
+        pathType: Prefix
+        hosts:
+          - chart-example.local
+        extraPaths: []
+        tls: []
+      
+      extraObjects: []

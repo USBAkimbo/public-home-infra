@@ -1,0 +1,27 @@
+services:
+  forgejo:
+    container_name: forgejo
+    image: codeberg.org/forgejo/forgejo:14
+    restart: always
+    environment:
+      - USER_UID=1000
+      - USER_GID=1000
+    volumes:
+      - {{ DOCKER_VOLUMES_ROOT }}/forgejo/data:/data
+      - /etc/localtime:/etc/localtime:ro
+    networks:
+      - proxy
+    ports:
+      - 222:22
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=proxy
+      - traefik.http.routers.forgejo.rule=Host(`{{ FORGEJO_URL }}`)
+      - traefik.http.routers.forgejo.entrypoints=websecure
+      - traefik.http.routers.forgejo.tls.certresolver=cloudflare
+      - traefik.http.services.forgejo.loadbalancer.server.port=3000
+      - traefik.http.routers.forgejo.service=forgejo
+
+networks:
+  proxy:
+    external: true

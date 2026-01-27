@@ -1,0 +1,12 @@
+services:
+  alloy:
+    image: grafana/alloy:v1.12.2
+    container_name: alloy
+    hostname: {{ ansible_hostname }}
+    restart: always
+    ports:
+      - 516:514/udp # Run on host port 516
+    volumes:
+      - {{ DOCKER_VOLUMES_ROOT }}/alloy/config:/etc/alloy
+      - /var/log:/var/log:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro

@@ -1,0 +1,20 @@
+- name: Ensure check-dvla folder exists
+  ansible.builtin.file:
+    path: /mnt/ssd/check-dvla
+    state: directory
+    mode: "700"
+
+- name: Copy over check-dvla script
+  ansible.builtin.template:
+    src: check-dvla.sh.j2
+    dest: /mnt/ssd/check-dvla/check-dvla.sh
+    mode: "700"
+
+- name: Run check-dvla every 12 hours
+  ansible.builtin.cron:
+    name: check-dvla
+    cron_file: check-dvla
+    hour: "*/12"
+    minute: "0"
+    user: root
+    job: "/mnt/ssd/check-dvla/check-dvla.sh"

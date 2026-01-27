@@ -1,0 +1,52 @@
+#!/bin/bash
+
+# Define variables
+OPNSENSE_IP={{ OPNSENSE_IP }}
+BACKUP_DIR={{ OPNSENSE_BACKUP_PATH }}/backups
+API_KEY={{ OPNSENSE_BACKUP_API_KEY }}
+API_SECRET={{ OPNSENSE_BACKUP_API_SECRET }}
+PASSWORD={{ OPNSENSE_BACKUP_PASSWORD }}
+NOW=$(date +"%Y-%m-%d--%H-%M")
+
+echo "Starting backup at $NOW"
+
+# Download the backup and save it with the current date and time
+curl -k -u $API_KEY:$API_SECRET https://$OPNSENSE_IP/api/core/backup/download/this -o "$BACKUP_DIR/backup-$NOW.xml"
+chmod 700 "$BACKUP_DIR/backup-$NOW.xml"
+
+if [ $? -ne 0 ]; then
+    echo "Backup failed"
+    echo 1 > $BACKUP_DIR/last-exit-code.log
+    exit 1
+fi
+
+# Encrypt the backup using openssl with a password
+openssl aes-256-cbc -pbkdf2 -in "$BACKUP_DIR/backup-$NOW.xml" -k $PASSWORD -out "$BACKUP_DIR/backup-$NOW.enc"
+
+if [ $? -ne 0 ]; then
+    echo "Backup encryption failed"
+    echo 1 > $BACKUP_DIR/last-exit-code.log
+    exit 1
+fi
+
+# Decrypt with this
+# openssl aes-256-cbc -d -pbkdf2 -in file_name_here.enc -k password_here -out file.xml
+
+# Remove the raw backup file
+find "$BACKUP_DIR" -name "*.xml" -delete
+
+# Delete backups older than 30 days
+echo "Deleting backups older than 30 days"
+BACKUP_COUNT=$(ls $BACKUP_DIR | wc -l)
+echo "There are $BACKUP_COUNT backups"
+if [ $BACKUP_COUNT -gt 30 ]
+then
+    echo "Deleting *.enc backups older than 30 days"
+    find $BACKUP_DIR -mtime +30 -name "*.enc" -delete
+    echo "Backup deletion complete"
+fi
+
+echo "Backup complete at $(date "+%Y-%m-%d--%H-%M")"
+echo 0 > $BACKUP_DIR/last-exit-code.log
+chmod 755 $BACKUP_DIR/*
+exit 0

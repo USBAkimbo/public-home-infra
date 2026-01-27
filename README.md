@@ -50,13 +50,13 @@ ansible-vault encrypt_string 'your text here'
 # Ansible command to patch Proxmox hosts
 ```
 cd ansible
-ansible-playbook -i hosts --vault-password-file ~/.ansible/vault-pass actions-playbooks/ansible-proxmox-patches.yml
+ansible-playbook -i hosts --vault-password-file ~/.ansible/vault-pass playbooks/ansible-proxmox-patches.yml
 ```
 
 # Ansible command to configure parents server
 ```
 cd ansible
-ansible-playbook -i hosts --vault-password-file ~/.ansible/vault-pass actions-playbooks/ansible-parents-server.yml
+ansible-playbook -i hosts --vault-password-file ~/.ansible/vault-pass playbooks/ansible-parents-server.yml
 ```
 
 # Talos Linux on Proxmox for K8s
@@ -77,10 +77,12 @@ ansible-playbook -i hosts --vault-password-file ~/.ansible/vault-pass actions-pl
   - siderolabs/qemu-guest-agent
   - siderolabs/util-linux-tools
 - These extensions allow for better CPU support, qemu agent support and NFS storage support
-- This will give you an ID, such as `a44ca58b65602c48398f2f3eb0b2b03fe5b431e6dfd7b4ee7b8ee3ad53802de7` (this generally persists through versions too)
+- This will give you an ID, such as `a44ca58b65602c48398f2f3eb0b2b03fe5b431e6dfd7b4ee7b8ee3ad53802de7`
+- Keep note of this ID as you'll use it in future
 - Download the metal ISO and store it on each Proxmox node
-- On each Proxmox node, create a new VM with, for example, 8 CPUs, 16GB of RAM and a 500GB disk (will also be used for Longhorn data)
+- On each Proxmox node, create a new VM with something like 8 CPUs, 16GB of RAM and a 500GB disk (will also be used for Longhorn data)
 - Connect the VM NIC to your K8s network
+- It's also a good idea to reserve the IPs for your nodes in DHCP or statically assign them
 - Boot the installer and follow the docs to install
 - These were my commands
 ```
@@ -95,10 +97,10 @@ export NODE1="10.10.3.11"
 export NODE2="10.10.3.12"
 export NODE3="10.10.3.13"
 export NODE4="10.10.3.14"
-export TALOSCONFIG="talosconfig/talosconfig"
+export TALOSCONFIG="~/.talos/config"
 
 # Generate cluster config
-talosctl gen config talos-proxmox-cluster https://$NODE1:6443 --output-dir talosconfig
+talosctl gen config talos-proxmox-cluster https://$NODE1:6443 --output-dir .
 
 # Move Talos config to home folder path
 mv talosconfig/talosconfig ~/.talos/config
@@ -112,8 +114,7 @@ sed -i 's/# allowSchedulingOnControlPlanes: true/allowSchedulingOnControlPlanes:
 # Edit the control plane and worker config install section to use the custom iso as per the docs
   install:
     disk: /dev/sda # The disk used for installations.
-    image: factory.talos.dev/installer/a44ca58b65602c48398f2f3eb0b2b03fe5b431e6dfd7b4ee7b8ee3ad53802de7:v1.10.4
-
+    image: factory.talos.dev/installer/a44ca58b65602c48398f2f3eb0b2b03fe5b431e6dfd7b4ee7b8ee3ad53802de7:v1.12.2
 # Once you've updated the worker and controlplane, update them in KeePass
 # Ensure that you backup all files in the _out folder
 
@@ -122,10 +123,10 @@ talosctl config endpoint $NODE1
 talosctl config node $NODE1
 
 # Apply config to each node (this will reboot each node)
-talosctl apply-config --insecure --nodes $NODE1 --file talosconfig/controlplane.yaml
-talosctl apply-config --insecure --nodes $NODE2 --file talosconfig/controlplane.yaml
-talosctl apply-config --insecure --nodes $NODE3 --file talosconfig/controlplane.yaml
-talosctl apply-config --insecure --nodes $NODE4 --file talosconfig/worker.yaml
+talosctl apply-config --insecure -n $NODE1 --file controlplane.yaml
+talosctl apply-config --insecure -n $NODE2 --file controlplane.yaml
+talosctl apply-config --insecure -n $NODE3 --file controlplane.yaml
+talosctl apply-config --insecure -n $NODE4 --file worker.yaml
 
 # Bootstrap the cluster to start it using $NODE1
 talosctl bootstrap
@@ -156,10 +157,10 @@ p-h-k8s-03   Ready    control-plane   20m   v1.29.3
 p-h-k8s-04   Ready    worker          20m   v1.29.3
 ```
 
-# Important! Backup configs
-- Encrypt and backup all the files in the `_out` folder
+# Important! Encrypt configs using ansible-vault
+- Encrypt all the files in the `_out` folder using `ansible-vault`
 - These files are **very** important so don't lose them
-- They also contain secrets, so don't store them in Git
+- They also contain secrets, so that's why they need encrypting
 
 # Upgrade Talos nodes
 - To upgrade a node from (for example) 1.7.0 to 1.7.4, re-install `talosctl` using the above link to get the latest version
@@ -168,12 +169,59 @@ p-h-k8s-04   Ready    worker          20m   v1.29.3
 - If not, use the one below and change the version tag
 - Then run the upgrade 1 node at a time with a 10 minute gap between nodes to allow for data syncing
 ```
-talosctl upgrade -n $NODE1 -n $NODE2 -n $NODE3 --image factory.talos.dev/installer/a44ca58b65602c48398f2f3eb0b2b03fe5b431e6dfd7b4ee7b8ee3ad53802de7:v1.10.4
+# Install/upgrade Talosctl on your admin machine first
+sudo rm /usr/local/bin/talosctl
+curl -sL https://talos.dev/install | sh
+
+talosctl upgrade -n $NODE1 --image factory.talos.dev/installer/a44ca58b65602c48398f2f3eb0b2b03fe5b431e6dfd7b4ee7b8ee3ad53802de7:v1.12.2
+sleep 60
+talosctl upgrade -n $NODE2 --image factory.talos.dev/installer/a44ca58b65602c48398f2f3eb0b2b03fe5b431e6dfd7b4ee7b8ee3ad53802de7:v1.12.2
+sleep 60
+talosctl upgrade -n $NODE3 --image factory.talos.dev/installer/a44ca58b65602c48398f2f3eb0b2b03fe5b431e6dfd7b4ee7b8ee3ad53802de7:v1.12.2
+
 ```
 - IMPORTANT! Update the `controlplane.yaml` and `worker.yaml` files with these links too
 
+# Replaced expired Talos cert
+```
+talosctl gen secrets --from-controlplane-config controlplane.yaml -o secrets.yaml
+
+# Then use that secrets file to generate a new talosconfig
+talosctl gen config talos-proxmox-cluster https://$NODE1:6443 --with-secrets secrets.yaml --output-types talosconfig --force
+```
+
+# Bootstrap K8s using Ansible
+- **Recommended**: Use Ansible to automate the K8s cluster bootstrap process
+- This installs the CLI tools and ArgoCD, which then deploys everything else via GitOps
+- Prerequisites:
+  - Talos cluster must already be running (see Talos Linux install section above)
+  - `kubeconfig` must be configured at `~/.kube/config` (use `talosctl kubeconfig` to export it)
+  - Must run from a machine with network access to the K8s cluster
+  - Update the SSH private key in `ansible/roles/k8s-install-argocd/defaults/main.yml` for repository access
+```
+cd ansible
+ansible-playbook -i hosts playbooks/ansible-k8s-bootstrap.yml
+```
+- The playbook will:
+  - Install kubectl, helm, k9s, and kustomize CLI tools
+  - Install ArgoCD for GitOps CD
+  - Configure ArgoCD SSH repository access
+  - Configure ArgoCD ApplicationSet to automatically deploy all apps from the `kubernetes/apps` directory
+- After completion:
+  1. ArgoCD will automatically deploy MetalLB, nginx-ingress, cert-manager, Longhorn, and other cluster components
+  2. Access ArgoCD initially via port-forward (ingress requires nginx-ingress and cert-manager to be deployed first):
+     ```
+     kubectl port-forward svc/argocd-server -n argocd 8080:443
+     ```
+  3. Retrieve the ArgoCD admin password with:
+     ```
+     kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d && echo
+     ```
+  4. Once nginx-ingress and cert-manager are running, the ArgoCD ingress can be deployed via ArgoCD or manually applied from `kubernetes/manual/argocd/ingress.yml`
+
 # Kubernetes config
 - The below is all in logical order as if you're starting from scratch
+- **Note**: If you used the Ansible bootstrap above, you can skip the manual installation commands for kubectl, helm, k9s, and ArgoCD. All other components will be automatically deployed by ArgoCD.
 - [Also see the API reference docs (these should be easier to find ffs)](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/)
 - I have a rule as well - anything that could break the cluster DOES NOT go in ArgoCD
 
@@ -222,7 +270,7 @@ kubectl -n ingress-nginx patch deployment/ingress-nginx-controller --patch-file 
 - Required for automated SSL certs for `myapp.mydomain.com`
 ```
 # https://cert-manager.io/docs/installation/helm/
-helm upgrade --install cert-manager cert-manager --repo https://charts.jetstack.io --namespace cert-manager --create-namespace --version v1.18.1 --set installCRDs=true
+helm upgrade --install cert-manager cert-manager --repo https://charts.jetstack.io --namespace cert-manager --create-namespace --version v1.19.2 --set installCRDs=true
 
 # See the repo for the secrets and issuer configs
 ```
@@ -341,7 +389,7 @@ kubectl get secret -n kube-system -l sealedsecrets.bitnami.com/sealed-secrets-ke
 kubectl apply -f sealed-secrets-key.yaml
 
 # Restart sealed secrets controller
-kubectl delete pod -n kube-system -l name=sealed-secrets-controller
+kubectl -n kube-system delete pod -l name=sealed-secrets-controller
 ```
 
 # Decrypt a sealed secret offline
@@ -390,6 +438,29 @@ helm upgrade "${INSTALLATION_NAME}" \
 ```
 - Useful issues page on uninstall if you need it, but just try a `k delete ns <namespace> --force` first
 - https://github.com/actions/actions-runner-controller/issues/2781
+- Or try this to uninstall
+```
+# Uninstall the runner scale set
+helm uninstall arc-runner-set -n arc-runners
+
+# Uninstall the controller
+helm uninstall arc -n arc-systems
+
+# Delete the namespaces
+kubectl delete namespace arc-runners
+kubectl delete namespace arc-systems
+
+# Verify everything is gone
+kubectl get all -n arc-runners
+kubectl get all -n arc-systems
+```
+
+# Grafana Alloy
+- Monitoring agent daemonset that runs on each node and ships logs to the defined Loki endpoint
+```
+helm upgrade --install --create-namespace alloy --namespace alloy --values kubernetes/manual/alloy/values.yaml grafana/alloy
+kubectl label namespace alloy pod-security.kubernetes.io/enforce=privileged
+```
 
 # Namespace stuck terminating
 - Do you have a namespace that just says terminating and it won't die?

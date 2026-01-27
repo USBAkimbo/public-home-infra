@@ -1,0 +1,5 @@
+DOCKER_VOLUMES_ROOT: /opt/dockervolumes
+TDARR_URL: tdarr.greenappleton.com
+PUID: 1000
+PGID: 1000
+TDARR_API_KEY: Generate me in the web UI
