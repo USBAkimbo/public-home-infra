@@ -1,18 +1,26 @@
 {
-  "extends": ["config:base"],
+  "extends": [
+    "config:recommended"
+  ],
   "kubernetes": {
-    "fileMatch": ["kubernetes/apps/.+/.+\\.ya?ml$"]
+    "managerFilePatterns": [
+      "/kubernetes/apps/.+/.+\\.ya?ml$/"
+    ]
   },
   "docker-compose": {
-    "fileMatch": [
-      "(^|/)docker-compose[^/]*\\.ya?ml$",
-      "(^|/)docker-compose[^/]*\\.ya?ml\\.j2$"
+    "managerFilePatterns": [
+      "/(^|/)docker-compose[^/]*\\.ya?ml$/",
+      "/(^|/)docker-compose[^/]*\\.ya?ml\\.j2$/"
     ]
   },
   "packageRules": [
     {
-      "matchDatasources": ["docker"],
-      "matchPackageNames": ["kopia/kopia"],
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "kopia/kopia"
+      ],
       "versioning": "semver",
       "allowedVersions": "/^[0-9]{1,3}\\.[0-9]+\\.[0-9]+$/"
     }
