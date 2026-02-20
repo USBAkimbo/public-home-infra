@@ -1,6 +1,0 @@
-- name: Copy over ssh config
-  copy:
-    src: config
-    dest: /root/.ssh/config
-    mode: 0700
-  notify: Restart sshd

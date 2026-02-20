@@ -1,0 +1,33 @@
+# Standard Zabbix configs
+PidFile=/var/run/zabbix/zabbix_agent2.pid
+LogFile=/var/log/zabbix/zabbix_agent2.log
+LogFileSize=0
+PluginSocket=/run/zabbix/agent.plugin.sock
+ControlSocket=/run/zabbix/agent.sock
+TLSConnect=psk
+TLSAccept=psk
+TLSPSKIdentity=psk
+TLSPSKFile=/etc/zabbix/zabbix-agent-psk
+Server=zabbix.greenappleton.com,10.10.3.0/24,greenappleton.com
+
+############
+# Userparams
+############
+
+# Proxmox - UPS info
+UserParameter=UPSStatus,apcaccess | awk '/^(STATUS).*:/ { print $3 }'
+UserParameter=UPSBcharge,apcaccess | awk '/^(BCHARGE).*:/ { print $3 }'
+UserParameter=UPSTimeleft,apcaccess | awk '/^(TIMELEFT).*:/ { print $3 }'
+
+# APT updates
+UserParameter=apt.updates,apt list --upgradable 2>/dev/null | grep -v "Listing" | wc -l
+
+# Speedtest
+UserParameter=speedtest.download,grep Download /tmp/speedtest.log | cut -d" " -f8
+UserParameter=speedtest.upload,grep Upload /tmp/speedtest.log | cut -d" " -f11
+
+# Temperature sensors on Proxmox hosts
+UserParameter=pve.temperature,sensors | grep 'Package id 0' | awk '{print $4}' | cut -d '+' -f2 | cut -d '.' -f1
+
+# Pi-Hole
+UserParameter=pihole.version,pihole version | grep "Core version is" | cut -d"v" -f3 | cut -d" " -f1

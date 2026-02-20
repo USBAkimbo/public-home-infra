@@ -1,36 +1,56 @@
-- name: Ensure gpg is installed
+- name: Ensure gpg and sudo are installed
   ansible.builtin.apt:
-    name: gpg
+    name:
+      - gpg
+      - sudo
+      - wget
     state: latest
 
-- name: Ensure sudo is installed
-  ansible.builtin.apt:
-    name: sudo
-    state: latest
+- name: Check if Zabbix release package is installed
+  ansible.builtin.shell: dpkg -l zabbix-release | grep -q "^ii"
+  register: zabbix_release_installed
+  changed_when: false
+  failed_when: false
 
-# https://www.jeffgeerling.com/blog/2022/aptkey-deprecated-debianubuntu-how-fix-ansible
-- name: Add Zabbix apt repo key
+- name: Set Zabbix repo distribution info
+  ansible.builtin.set_fact:
+    zabbix_repo_os: "{{ 'ubuntu' if ansible_facts['distribution'] == 'Ubuntu' else 'debian' }}"
+    zabbix_repo_os_arch: >-
+      {{
+        ('ubuntu-arm64' if ansible_facts['distribution'] == 'Ubuntu' else 'debian-arm64')
+        if ansible_facts['architecture'] == 'aarch64'
+        else ('ubuntu' if ansible_facts['distribution'] == 'Ubuntu' else 'debian')
+      }}
+    zabbix_repo_os_version: >-
+      {{
+        ansible_facts['distribution_version'] if ansible_facts['distribution'] == 'Ubuntu'
+        else ansible_facts['distribution_major_version']
+      }}
+
+- name: Download Zabbix release package
   ansible.builtin.get_url:
-    url: https://repo.zabbix.com/zabbix-official-repo.key
-    dest: /etc/apt/trusted.gpg.d/zabbix-official-repo.asc
+    url: "https://repo.zabbix.com/zabbix/{{ ZABBIX_VERSION }}/{{ zabbix_repo_os_arch }}/pool/main/z/zabbix-release/zabbix-release_{{ ZABBIX_VERSION }}-2+{{ zabbix_repo_os }}{{ zabbix_repo_os_version }}_all.deb"
+    dest: /tmp/zabbix-release.deb
     mode: "644"
+  when: zabbix_release_installed.rc != 0
 
-- name: Add Zabbix apt repo
-  ansible.builtin.apt_repository:
-    repo: "deb https://repo.zabbix.com/zabbix/{{ ZABBIX_VERSION }}/{{ ansible_distribution|lower }} {{ ansible_distribution_release }} main"
-    state: present
-  register: apt_zabbix_repo
-
-- name: apt update
+- name: Install Zabbix release package
   ansible.builtin.apt:
-    update_cache: yes
-  when: apt_zabbix_repo.changed
+    deb: /tmp/zabbix-release.deb
+    state: present
+  register: zabbix_release_deb
+  when: zabbix_release_installed.rc != 0
+
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+  when: zabbix_release_deb.changed | default(false)
 
 - name: Install Zabbix Agent 2
   ansible.builtin.apt:
     name: zabbix-agent2
     state: latest
-  notify: Restart and enable Zabbix Agent 2 service
+  register: zabbix_agent2_installed
 
 - name: Configure Zabbix Agent 2
   ansible.builtin.template:
@@ -39,7 +59,14 @@
     owner: zabbix
     group: zabbix
     mode: "660"
-  notify: Restart and enable Zabbix Agent 2 service
+  register: zabbix_agent2_configured
+
+- name: Restart and enable Zabbix Agent 2 service
+  ansible.builtin.systemd:
+    name: zabbix-agent2
+    state: restarted
+    enabled: true
+  when: zabbix_agent2_installed.changed or zabbix_agent2_configured.changed
 
 - name: Add Zabbix user to Docker group
   ansible.builtin.user:

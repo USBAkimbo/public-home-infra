@@ -1,0 +1,41 @@
+services:
+  imgur-proxy-gluetun:
+    container_name: imgur-proxy-gluetun
+    image: ghcr.io/qdm12/gluetun:v3.41.1
+    restart: always
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      - TZ=Europe/London
+      - VPN_SERVICE_PROVIDER=mullvad
+      - VPN_TYPE=wireguard
+      - WIREGUARD_PRIVATE_KEY={{ IMGUR_WIREGUARD_PRIVATE_KEY }}
+      - WIREGUARD_ADDRESSES={{ IMGUR_WIREGUARD_ADDRESSES }}
+      - SERVER_CITIES={{ IMGUR_SERVER_CITIES }}
+      - FIREWALL_INPUT_PORTS=443
+    labels:
+      # Enable Traefik reverse proxy for TCP routing
+      - traefik.enable=true
+      # TCP router for i.imgur.com
+      - traefik.tcp.routers.imgur-router.rule=HostSNI(`i.imgur.com`) || HostSNI(`imgur.com`)
+      - traefik.tcp.routers.imgur-router.entrypoints=websecure
+      - traefik.tcp.routers.imgur-router.tls.passthrough=true
+      - traefik.tcp.routers.imgur-router.service=imgur-service
+      # TCP service pointing to the container on port 443
+      - traefik.tcp.services.imgur-service.loadbalancer.server.port=443
+    networks:
+      - proxy
+
+  imgur-proxy-nginx:
+    container_name: imgur-proxy-nginx
+    image: nginx:alpine
+    restart: always
+    network_mode: service:imgur-proxy-gluetun
+    volumes:
+      - {{ DOCKER_VOLUMES_ROOT }}/imgur-proxy/nginx.conf:/etc/nginx/nginx.conf:ro
+
+networks:
+  proxy:
+    external: true

@@ -1,9 +1,18 @@
+- name: Check current dnsmasq_lines config
+  ansible.builtin.command:
+    cmd: pihole-FTL --config misc.dnsmasq_lines
+  register: dnsmasq_lines
+  changed_when: false
+
+- name: Ensure addn-hosts is configured
+  ansible.builtin.command:
+    cmd: pihole-FTL --config misc.dnsmasq_lines '["addn-hosts=/etc/pihole/hosts/custom-dns.list"]'
+  when: "'custom-dns.list' not in dnsmasq_lines.stdout"
+
 - name: Copy DNS hosts list
   ansible.builtin.copy:
-    src: custom.list
-    dest: /etc/pihole/hosts/custom.list
-  register: pihole_config
+    src: custom-dns.list
+    dest: /etc/pihole/hosts/custom-dns.list
 
-- name: Reload Pi-Hole DNS if there's changes
+- name: Reload Pi-Hole DNS
   ansible.builtin.command: pihole reloaddns
-  when: pihole_config.changed

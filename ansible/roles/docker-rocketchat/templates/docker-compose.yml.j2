@@ -1,0 +1,123 @@
+services:
+  rocketchat:
+    container_name: rocketchat
+    image: registry.rocket.chat/rocketchat/rocket.chat:8.0.1
+    restart: always
+    environment:
+      - ROOT_URL=https://{{ ROCKETCHAT_URL }}
+      - PORT=3000
+      - DEPLOY_METHOD=docker
+      - DEPLOY_PLATFORM=compose
+      - MONGO_URL=mongodb://mongodb:27017/rocketchat?replicaSet={{ MONGODB_REPLICA_SET_NAME }}
+      - TRANSPORTER=monolith+nats://nats:4222
+    depends_on:
+      - mongodb
+      - nats
+    entrypoint: sh
+    command:
+      - -c
+      - |
+        echo "=====> Waiting for MongoDB (mongodb:27017) to be ready before starting Rocket.Chat...";
+        for i in $$(seq 1 60); do
+          if nc -z mongodb 27017 >/dev/null 2>&1; then
+            echo "=====> MongoDB is up - starting Rocket.Chat";
+            exec node main.js;
+          fi;
+          echo "=====> MongoDB not ready yet, retrying in 5 seconds...";
+          sleep 5;
+        done;
+        echo "=====> Giving up waiting for MongoDB after 5 minutes";
+        exit 1
+    networks:
+      - proxy
+      - rocketchat
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=proxy
+      - traefik.http.routers.rocketchat.rule=Host(`{{ ROCKETCHAT_URL }}`)
+      - traefik.http.routers.rocketchat.entrypoints=websecure
+      - traefik.http.routers.rocketchat.tls.certresolver={{ TRAEFIK_CERT_RESOLVER_NAME }}
+      - traefik.http.services.rocketchat.loadbalancer.server.port=3000
+      - traefik.http.routers.rocketchat.service=rocketchat
+
+  nats:
+    container_name: rocketchat_nats
+    image: docker.io/nats:2.11-alpine
+    restart: always
+    command: --http_port 8222
+    networks:
+      - rocketchat
+
+  mongodb:
+    container_name: rocketchat_mongodb
+    image: docker.io/mongodb/mongodb-community-server:8.2-ubi8
+    restart: always
+    volumes:
+      - {{ DOCKER_VOLUMES_ROOT }}/rocketchat/mongodb_data:/data/db
+    user: "{{ MONGODB_USER_ID }}"
+    entrypoint:
+      - sh
+      - -ec
+      - |
+        echo "=====> Waiting for /data/db to be owned by uid=$${MONGODB_USER_ID} (mongodb user) ...";
+        for i in $$(seq 1 60); do
+          owner="$$(stat -c %u /data/db 2>/dev/null || true)";
+          if [ "$$owner" = "$${MONGODB_USER_ID}" ]; then
+            echo "=====> /data/db ownership OK ($$owner) - starting MongoDB";
+            exec mongod --replSet "$${MONGODB_REPLICA_SET_NAME}" --bind_ip_all;
+          fi;
+          echo "=====> /data/db owner is '$$owner' (expected $${MONGODB_USER_ID}), retrying in 5 seconds...";
+          sleep 5;
+        done;
+        echo "=====> Giving up waiting for /data/db ownership after 5 minutes";
+        exit 1
+    environment:
+      - MONGODB_USER_ID={{ MONGODB_USER_ID }}
+      - MONGODB_REPLICA_SET_NAME={{ MONGODB_REPLICA_SET_NAME }}
+      - MONGODB_PORT_NUMBER=27017
+      - MONGODB_ADVERTISED_HOSTNAME=mongodb
+      - ALLOW_EMPTY_PASSWORD=yes
+    healthcheck:
+      test:
+        - CMD
+        - mongosh
+        - "mongodb://mongodb:27017/?directConnection=true"
+        - --eval
+        - "db.adminCommand('ping')"
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    networks:
+      - rocketchat
+
+  mongodb-init:
+    container_name: rocketchat_mongodb_init
+    image: docker.io/mongodb/mongodb-community-server:8.2-ubi8
+    restart: on-failure
+    user: "0"
+    environment:
+      - MONGODB_REPLICA_SET_NAME={{ MONGODB_REPLICA_SET_NAME }}
+      - MONGODB_PORT_NUMBER=27017
+      - MONGODB_URI=mongodb://mongodb:27017/?directConnection=true
+      - MONGODB_ADVERTISED_HOSTNAME=mongodb
+    depends_on:
+      - mongodb
+    networks:
+      - rocketchat
+    entrypoint: |
+      sh -xc '
+        echo "=====> Waiting for MongoDB to be healthy before initiating replica set...";
+        until mongosh "$$MONGODB_URI" --eval "db.adminCommand(\"ping\")" >/dev/null 2>&1; do
+          echo "=====> MongoDB not ready yet, retrying in 5 seconds...";
+          sleep 5;
+        done;
+        echo "=====> Initiating ReplSet $$MONGODB_REPLICA_SET_NAME at $$MONGODB_ADVERTISED_HOSTNAME:$$MONGODB_PORT_NUMBER...";
+        mongosh "$$MONGODB_URI" --eval "rs.initiate({_id: \"$$MONGODB_REPLICA_SET_NAME\", members: [{ _id: 0, host: \"$$MONGODB_ADVERTISED_HOSTNAME:$$MONGODB_PORT_NUMBER\" }]})";
+        echo "=====> Initiating ReplSet done...";
+      '
+
+networks:
+  rocketchat:
+  proxy:
+    external: true

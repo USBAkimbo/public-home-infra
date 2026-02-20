@@ -1,0 +1,78 @@
+- name: Ensure gpg and sudo are installed
+  ansible.builtin.apt:
+    name:
+      - gpg
+      - sudo
+      - wget
+    state: latest
+
+- name: Check if Zabbix release package is installed
+  ansible.builtin.shell: dpkg -l zabbix-release | grep -q "^ii"
+  register: zabbix_release_installed
+  changed_when: false
+  failed_when: false
+
+- name: Set Zabbix repo architecture suffix
+  ansible.builtin.set_fact:
+    zabbix_repo_distro: "{{ 'ubuntu-arm64' if ansible_architecture == 'aarch64' else 'ubuntu' }}"
+
+- name: Download Zabbix release package
+  ansible.builtin.get_url:
+    url: "https://repo.zabbix.com/zabbix/{{ ZABBIX_VERSION }}/{{ zabbix_repo_distro }}/pool/main/z/zabbix-release/zabbix-release_latest+ubuntu{{ ansible_facts['distribution_version'] }}_all.deb"
+    dest: /tmp/zabbix-release.deb
+    mode: "644"
+  when: zabbix_release_installed.rc != 0
+
+- name: Install Zabbix release package
+  ansible.builtin.apt:
+    deb: /tmp/zabbix-release.deb
+    state: present
+  register: zabbix_release_deb
+  when: zabbix_release_installed.rc != 0
+
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+  when: zabbix_release_deb.changed | default(false)
+
+- name: Install Zabbix Agent 2
+  ansible.builtin.apt:
+    name: zabbix-agent2
+    state: latest
+  register: zabbix_agent2_installed
+
+- name: Configure Zabbix Agent 2
+  ansible.builtin.template:
+    src: zabbix_agent2.conf.j2
+    dest: /etc/zabbix/zabbix_agent2.conf
+    owner: zabbix
+    group: zabbix
+    mode: "660"
+  register: zabbix_agent2_configured
+
+- name: Copy over PSK file
+  ansible.builtin.copy:
+    content: "{{ ZABBIX_PSK }}"
+    dest: /etc/zabbix/zabbix-agent-psk
+    mode: "400"
+    owner: zabbix
+    group: zabbix
+
+- name: Restart and enable Zabbix Agent 2 service
+  ansible.builtin.systemd:
+    name: zabbix-agent2
+    state: restarted
+    enabled: true
+  when: zabbix_agent2_installed.changed or zabbix_agent2_configured.changed
+
+- name: Add Zabbix user to Docker group
+  ansible.builtin.user:
+    name: zabbix
+    groups: docker
+  ignore_errors: true
+
+- name: Add Zabbix user to sudoers to run smartctl
+  ansible.builtin.copy:
+    content: "zabbix ALL=(ALL) NOPASSWD: /usr/sbin/smartctl"
+    dest: /etc/sudoers.d/zabbix
+    mode: "440"

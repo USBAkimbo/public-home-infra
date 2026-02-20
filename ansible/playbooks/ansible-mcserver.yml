@@ -1,5 +1,0 @@
-- hosts: minecraft.greenappleton.com
-  become: yes
-  roles:
-    - roles/enable-auto-update
-    - roles/install-zabbix-agent2

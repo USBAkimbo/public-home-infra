@@ -1,0 +1,24 @@
+services:
+  docker-in-docker:
+    image: docker:dind
+    container_name: forgejo-runner-dind
+    privileged: true
+    # TCP without TLS - only accessible within compose network (not exposed to host)
+    command: ['dockerd', '-H', 'tcp://0.0.0.0:2375', '--tls=false']
+    restart: unless-stopped
+
+  forgejo-runner:
+    image: data.forgejo.org/forgejo/runner:12.6.4
+    container_name: forgejo-runner
+    restart: unless-stopped
+    depends_on:
+      docker-in-docker:
+        condition: service_started
+    links:
+      - docker-in-docker
+    environment:
+      DOCKER_HOST: tcp://docker-in-docker:2375
+    user: "{{ FORGEJO_RUNNER_UID }}:{{ FORGEJO_RUNNER_GID }}"
+    volumes:
+      - {{ DOCKER_VOLUMES_ROOT }}/forgejo-runner/data:/data
+    command: /bin/sh -c "forgejo-runner daemon --config /data/config.yml"

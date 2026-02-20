@@ -1,0 +1,127 @@
+#!/bin/bash
+
+clear
+echo PKA Downloader
+echo
+echo Version 2026-02-18
+echo
+
+# Variables
+FEED_URL="https://feed.podbean.com/painkilleralready/feed.xml"
+TEMP_FOLDER="/mnt/ssd/pka-downloader/podcast-temp-$(date +'%Y-%m-%d--%H-%M-%S')"
+OUTPUT_FOLDER="/mnt/ssd/music/Podcasts/PKA"
+DISCORD_WEBHOOK_URL={{ PKA_DOWNLOADER_DISCORD_WEBHOOK_URL }}
+
+# Ensure folders exists
+mkdir -p "$OUTPUT_FOLDER"
+mkdir -p "$TEMP_FOLDER"
+
+echo ===== Fetching podcast feed =====
+# Download the XML feed
+FEED_FILE="$TEMP_FOLDER/pka-feed-$(date +'%Y%m%d%H%M%S').xml"
+if ! wget -q -O "$FEED_FILE" "$FEED_URL"; then
+    echo "Error: Failed to download podcast feed"
+    exit 1
+fi
+
+echo ===== Checking for new episodes =====
+
+# Track downloads
+downloaded_count=0
+
+# Get the number of items in the feed
+item_count=$(xmllint --xpath "count(//item)" "$FEED_FILE" 2>/dev/null)
+
+# Process each item
+for i in $(seq 1 $item_count); do
+    # Extract fields using xmllint (handles CDATA automatically)
+    title=$(xmllint --xpath "string(//item[$i]/title)" "$FEED_FILE" 2>/dev/null)
+    audio_url=$(xmllint --xpath "string(//item[$i]/enclosure/@url)" "$FEED_FILE" 2>/dev/null)
+    pub_date=$(xmllint --xpath "string(//item[$i]/pubDate)" "$FEED_FILE" 2>/dev/null)
+    
+    # Skip if we don't have all required fields
+    if [ -z "$title" ] || [ -z "$audio_url" ] || [ -z "$pub_date" ]; then
+        continue
+    fi
+    
+    # Determine podcast type (PKA or PKN)
+    if echo "$title" | grep -qiE 'PKN'; then
+        PODCAST=PKN
+        EP_NUM=$(echo "$title" | grep -oiP 'PKN\s*#?\s*\K\d+' || echo "")
+    elif echo "$title" | grep -qiE 'PKA|Painkiller Already'; then
+        PODCAST=PKA
+        EP_NUM=$(echo "$title" | grep -oiP '(PKA|Painkiller Already)\s*#?\s*\K\d+' || echo "")
+    else
+        # Fallback: extract first number if specific tags aren't found
+        PODCAST=PKA
+        EP_NUM=$(echo "$title" | grep -oP '\d+' | head -1 || echo "")
+    fi
+    
+    # Skip if we couldn't extract episode number
+    if [ -z "$EP_NUM" ]; then
+        echo "Warning: Could not extract episode number from '$title', skipping..."
+        continue
+    fi
+    
+    # Skip if episode already exists
+    if [ -f "$OUTPUT_FOLDER/$PODCAST $EP_NUM.mp3" ]; then
+        echo "Episode $PODCAST $EP_NUM already exists, skipping..."
+        continue
+    fi
+    
+    echo "Downloading $PODCAST $EP_NUM..."
+    
+    # Download the audio file
+    if wget -q -O "$TEMP_FOLDER/temp_audio.mp3" "$audio_url"; then
+        # Convert pubDate to YYYY-MM-DD HH:MM format
+        UPLOAD_DATE=$(date -d "$pub_date" "+%Y-%m-%d %H:%M" 2>/dev/null || echo "$pub_date")
+        
+        # Process with ffmpeg: add metadata, compress, convert to mono
+        echo "Processing $PODCAST $EP_NUM..."
+        if /mnt/ssd/pka-downloader/ffmpeg -y -i "$TEMP_FOLDER/temp_audio.mp3" \
+             -metadata title="$PODCAST $EP_NUM" \
+             -metadata artist="PKA" \
+             -metadata date="$UPLOAD_DATE" \
+             -b:a 32k -ac 1 \
+             "$OUTPUT_FOLDER/$PODCAST $EP_NUM.mp3" >/dev/null 2>&1; then
+            
+            echo "Successfully downloaded and processed $PODCAST $EP_NUM"
+            
+            # Send Discord notification
+            if [ -n "$DISCORD_WEBHOOK_URL" ]; then
+                if command -v jq >/dev/null 2>&1; then
+                    payload=$(jq -n --arg msg "Downloaded new episode: $PODCAST $EP_NUM (Published: $UPLOAD_DATE)" '{content: $msg}')
+                    curl -H "Content-Type: application/json" -X POST -d "$payload" "$DISCORD_WEBHOOK_URL" 2>/dev/null
+                else
+                    curl -H "Content-Type: application/json" -X POST -d "{\"content\": \"Downloaded new episode: $PODCAST $EP_NUM (Published: $UPLOAD_DATE)\"}" "$DISCORD_WEBHOOK_URL" 2>/dev/null
+                fi
+            fi
+            
+            downloaded_count=$((downloaded_count + 1))
+        else
+            echo "Error: Failed to process episode with ffmpeg"
+        fi
+        
+        # Remove temp audio file
+        rm -f "$TEMP_FOLDER/temp_audio.mp3"
+    else
+        echo "Error: Failed to download episode"
+    fi
+done
+
+# Clean up feed file and temp folder after the loop finishes
+rm -rf "$TEMP_FOLDER"
+
+echo
+echo ===== Done! =====
+echo "Downloaded $downloaded_count new episode(s)"
+
+# Send completion notification
+if [ -n "$DISCORD_WEBHOOK_URL" ]; then
+    if command -v jq >/dev/null 2>&1; then
+        payload=$(jq -n --arg msg "PKA Downloader completed: $downloaded_count new episode(s) downloaded" '{content: $msg}')
+        curl -H "Content-Type: application/json" -X POST -d "$payload" "$DISCORD_WEBHOOK_URL" 2>/dev/null
+    else
+        curl -H "Content-Type: application/json" -X POST -d "{\"content\": \"PKA Downloader completed: $downloaded_count new episode(s) downloaded\"}" "$DISCORD_WEBHOOK_URL" 2>/dev/null
+    fi
+fi

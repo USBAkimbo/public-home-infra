@@ -1,0 +1,5 @@
+DOCKER_VOLUMES_ROOT: /opt/dockervolumes
+ROCKETCHAT_URL: chat.greenappleton.com
+MONGODB_USER_ID: 1001
+MONGODB_REPLICA_SET_NAME: rs0
+TRAEFIK_CERT_RESOLVER_NAME: letsencrypt

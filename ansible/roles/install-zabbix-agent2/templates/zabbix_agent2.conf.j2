@@ -7,7 +7,7 @@ ControlSocket=/run/zabbix/agent.sock
 {% if ansible_hostname == "parents-server" %}
 Server=127.0.0.1,172.16.0.0/12,10.10.3.0/24
 {% else %}
-Server=zabbix.greenappleton.com,10.10.3.0/24
+Server=zabbix.greenappleton.com,10.10.3.0/24,greenappleton.com
 {% endif %}
 
 ############

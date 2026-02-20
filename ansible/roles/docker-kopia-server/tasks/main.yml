@@ -24,15 +24,15 @@
     container: kopia-local
     command: kopia policy set --global --compression=zstd --keep-hourly=48 --keep-daily=30 --keep-weekly=52 --keep-monthly=24 --keep-annual=3 --keep-latest=0
 
-# Enable this step once for the initial snapshot
 - name: Set local repo folders to snapshot
   community.docker.docker_container_exec:
     container: kopia-local
     command: kopia snapshot create {{ item }}
   loop:
     - /mnt/ssd/docker/bazarr
-    - /mnt/ssd/docker/frigate
+    - /mnt/ssd/docker/dispatcharr
     - /mnt/ssd/docker/forgejo
+    - /mnt/ssd/docker/frigate
     - /mnt/ssd/docker/grafana
     - /mnt/ssd/docker/home-assistant
     - /mnt/ssd/docker/immich/import
@@ -78,8 +78,9 @@
     command: kopia snapshot create {{ item }}
   loop:
     - /mnt/ssd/docker/bazarr
-    - /mnt/ssd/docker/frigate
+    - /mnt/ssd/docker/dispatcharr
     - /mnt/ssd/docker/forgejo
+    - /mnt/ssd/docker/frigate
     - /mnt/ssd/docker/grafana
     - /mnt/ssd/docker/home-assistant
     - /mnt/ssd/docker/immich/import

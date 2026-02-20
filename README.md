@@ -114,7 +114,7 @@ sed -i 's/# allowSchedulingOnControlPlanes: true/allowSchedulingOnControlPlanes:
 # Edit the control plane and worker config install section to use the custom iso as per the docs
   install:
     disk: /dev/sda # The disk used for installations.
-    image: factory.talos.dev/installer/a44ca58b65602c48398f2f3eb0b2b03fe5b431e6dfd7b4ee7b8ee3ad53802de7:v1.12.2
+    image: factory.talos.dev/installer/a44ca58b65602c48398f2f3eb0b2b03fe5b431e6dfd7b4ee7b8ee3ad53802de7:v1.12.3
 # Once you've updated the worker and controlplane, update them in KeePass
 # Ensure that you backup all files in the _out folder
 
@@ -173,11 +173,11 @@ p-h-k8s-04   Ready    worker          20m   v1.29.3
 sudo rm /usr/local/bin/talosctl
 curl -sL https://talos.dev/install | sh
 
-talosctl upgrade -n $NODE1 --image factory.talos.dev/installer/a44ca58b65602c48398f2f3eb0b2b03fe5b431e6dfd7b4ee7b8ee3ad53802de7:v1.12.2
+talosctl upgrade -n $NODE1 --image factory.talos.dev/installer/a44ca58b65602c48398f2f3eb0b2b03fe5b431e6dfd7b4ee7b8ee3ad53802de7:v1.12.3
 sleep 60
-talosctl upgrade -n $NODE2 --image factory.talos.dev/installer/a44ca58b65602c48398f2f3eb0b2b03fe5b431e6dfd7b4ee7b8ee3ad53802de7:v1.12.2
+talosctl upgrade -n $NODE2 --image factory.talos.dev/installer/a44ca58b65602c48398f2f3eb0b2b03fe5b431e6dfd7b4ee7b8ee3ad53802de7:v1.12.3
 sleep 60
-talosctl upgrade -n $NODE3 --image factory.talos.dev/installer/a44ca58b65602c48398f2f3eb0b2b03fe5b431e6dfd7b4ee7b8ee3ad53802de7:v1.12.2
+talosctl upgrade -n $NODE3 --image factory.talos.dev/installer/a44ca58b65602c48398f2f3eb0b2b03fe5b431e6dfd7b4ee7b8ee3ad53802de7:v1.12.3
 
 ```
 - IMPORTANT! Update the `controlplane.yaml` and `worker.yaml` files with these links too

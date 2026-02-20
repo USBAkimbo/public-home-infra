@@ -1,0 +1,39 @@
+log:
+  level: info
+  job_level: info
+
+runner:
+  file: .runner
+  capacity: {{ forgejo_runner_capacity | default(10) }}
+  labels:
+    - "forgejo-runner:docker://77cla77/ansible-actions-runner:latest"
+  timeout: 3h
+  shutdown_timeout: 3h
+  insecure: false
+  fetch_timeout: 5s
+  fetch_interval: 2s
+  report_interval: 1s
+
+cache:
+  enabled: true
+  port: 0
+  dir: ""
+  external_server: ""
+  secret: ""
+  host: ""
+  proxy_port: 0
+
+container:
+  image: "77cla77/ansible-actions-runner:latest"
+  network: ""
+  enable_ipv6: false
+  privileged: false
+  options: ""
+  workdir_parent:
+  valid_volumes: []
+  docker_host: "-"
+  force_pull: true
+  force_rebuild: false
+
+host:
+  workdir_parent:

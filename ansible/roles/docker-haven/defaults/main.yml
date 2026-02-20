@@ -1,0 +1,4 @@
+DOCKER_VOLUMES_ROOT: /opt/dockervolumes
+HAVEN_URL: chat.greenappleton.com
+TRAEFIK_CERT_RESOLVER_NAME: cloudflare
+TURN_SECRET: define_in_main

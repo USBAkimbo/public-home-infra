@@ -1,0 +1,5 @@
+DOCKER_VOLUMES_ROOT: /opt/dockervolumes
+FORGEJO_RUNNER_UID: 1001
+FORGEJO_RUNNER_GID: 1001
+FORGEJO_INSTANCE_URL: forgejo.greenappleton.com
+FORGEJO_RUNNER_TOKEN: replace_me_in_main

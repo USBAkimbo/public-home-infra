@@ -1,7 +1,7 @@
 services:
   loki:
     container_name: loki
-    image: grafana/loki:3.6.4
+    image: grafana/loki:3.6.6
     restart: always
     volumes:
       - {{ DOCKER_VOLUMES_ROOT }}/loki/config:/etc/loki

@@ -1,0 +1,46 @@
+services:
+  haven:
+    image: haven:2.0.1
+    build:
+      context: https://github.com/ancsemi/Haven.git#v2.0.1
+    container_name: haven
+    restart: unless-stopped
+    volumes:
+      - {{ DOCKER_VOLUMES_ROOT }}/haven/data:/data
+    environment:
+      - PORT=3000
+      - HOST=0.0.0.0
+      - SERVER_NAME=Akimbo's
+      - ADMIN_USERNAME=akimbo
+      - TURN_URL=turn:{{ HAVEN_URL }}:3478
+      - TURN_SECRET={{ TURN_SECRET }}
+    networks:
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=proxy
+      - traefik.http.routers.haven.rule=Host(`{{ HAVEN_URL }}`)
+      - traefik.http.routers.haven.entrypoints=websecure
+      - traefik.http.routers.haven.tls.certresolver={{ TRAEFIK_CERT_RESOLVER_NAME }}
+      - traefik.http.services.haven.loadbalancer.server.port=3000
+      - traefik.http.services.haven.loadbalancer.server.scheme=https
+      - traefik.http.routers.haven.service=haven
+
+  coturn:
+    image: coturn/coturn:4.8.0-alpine
+    container_name: coturn
+    restart: unless-stopped
+    network_mode: host
+    command:
+      - -n
+      - --listening-port=3478
+      - --tls-listening-port=5349
+      - --realm={{ HAVEN_URL }}
+      - --use-auth-secret
+      - --static-auth-secret={{ TURN_SECRET }}
+      - --min-port=49152
+      - --max-port=65535
+
+networks:
+  proxy:
+    external: true

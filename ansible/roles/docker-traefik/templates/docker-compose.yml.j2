@@ -1,11 +1,13 @@
 services:
   traefik:
-    image: traefik:v3.6.7
+    image: traefik:v3.6.8
     container_name: traefik
     restart: unless-stopped
+{% if TRAEFIK_ACME_CHALLENGE == 'dns' %}
     environment:
       - CF_API_EMAIL={{ CLOUDFLARE_EMAIL }}
       - CF_DNS_API_TOKEN={{ CLOUDFLARE_DNS_API_TOKEN }}
+{% endif %}
     command:
       - --log.level=DEBUG
       - --providers.docker=true
@@ -14,10 +16,15 @@ services:
       - --entryPoints.web.http.redirections.entryPoint.to=websecure
       - --entryPoints.web.http.redirections.entryPoint.scheme=https
       - --entryPoints.websecure.address=:443
-      - --certificatesresolvers.cloudflare.acme.dnschallenge.provider=cloudflare
-      - --certificatesresolvers.cloudflare.acme.dnschallenge.delaybeforecheck=30 # Wait 30s before checking for the TXT record
-      - --certificatesresolvers.cloudflare.acme.dnschallenge.disablepropagationcheck=true # Disable DNS propagation check (looks like a bug)
-      - --certificatesresolvers.cloudflare.acme.storage=/letsencrypt/acme.json # Persist certs in acme.json
+      - --serversTransport.insecureSkipVerify=true # Allow backends with self-signed certs
+{% if TRAEFIK_ACME_CHALLENGE == 'dns' %}
+      - --certificatesresolvers.{{ TRAEFIK_CERT_RESOLVER_NAME }}.acme.dnschallenge.provider=cloudflare
+      - --certificatesresolvers.{{ TRAEFIK_CERT_RESOLVER_NAME }}.acme.dnschallenge.delaybeforecheck=30 # Wait 30s before checking for the TXT record
+      - --certificatesresolvers.{{ TRAEFIK_CERT_RESOLVER_NAME }}.acme.dnschallenge.disablepropagationcheck=true # Disable DNS propagation check (looks like a bug)
+{% elif TRAEFIK_ACME_CHALLENGE == 'tls' %}
+      - --certificatesresolvers.{{ TRAEFIK_CERT_RESOLVER_NAME }}.acme.tlschallenge=true
+{% endif %}
+      - --certificatesresolvers.{{ TRAEFIK_CERT_RESOLVER_NAME }}.acme.storage=/letsencrypt/acme.json # Persist certs in acme.json
     ports:
       - 80:80
       - 443:443

@@ -1,4 +1,4 @@
-- name: Create daily Docker maintenance cron job daily at 04:00
+- name: Create daily Docker maintenance cron job daily at 06:00
   ansible.builtin.cron:
     name: docker-maintenance
     cron_file: docker-maintenance

@@ -4,6 +4,9 @@ vault-pass
 # VSCode
 .vscode
 
+# Mac shit
+.DS_Store
+
 # Local .terraform directories
 **/.terraform/*
 

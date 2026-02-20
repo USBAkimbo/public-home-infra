@@ -1,0 +1,99 @@
+---
+- name: Check if Grafana GPG key exists
+  ansible.builtin.stat:
+    path: /etc/apt/keyrings/grafana.gpg
+  register: grafana_gpg_key
+
+- name: Check if Grafana repository is configured
+  ansible.builtin.stat:
+    path: /etc/apt/sources.list.d/grafana.list
+  register: grafana_repo
+
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: yes
+    cache_valid_time: 3600
+
+- name: Install required packages
+  ansible.builtin.apt:
+    name:
+      - gpg
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - wget
+    state: present
+
+- name: Install software-properties-common (if available)
+  ansible.builtin.apt:
+    name: software-properties-common
+    state: present
+  ignore_errors: yes
+
+- name: Create keyrings directory
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "755"
+  when: not grafana_gpg_key.stat.exists
+
+- name: Download Grafana GPG key
+  ansible.builtin.get_url:
+    url: https://apt.grafana.com/gpg.key
+    dest: /tmp/grafana.gpg.key
+    mode: "644"
+  when: not grafana_gpg_key.stat.exists
+  register: gpg_key_downloaded
+
+- name: Add Grafana GPG key
+  ansible.builtin.shell: |
+    cat /tmp/grafana.gpg.key | gpg --dearmor > /etc/apt/keyrings/grafana.gpg
+  args:
+    creates: /etc/apt/keyrings/grafana.gpg
+  when: gpg_key_downloaded is changed
+
+- name: Add Grafana repository
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/grafana.gpg] https://apt.grafana.com stable main"
+    state: present
+    filename: grafana
+  when: not grafana_repo.stat.exists
+  register: repo_added
+
+- name: Update apt cache after adding repository
+  ansible.builtin.apt:
+    update_cache: yes
+  when: repo_added is changed
+
+- name: Install Grafana Alloy
+  ansible.builtin.apt:
+    name: alloy
+    state: present
+
+- name: Add alloy user to docker group
+  ansible.builtin.user:
+    name: alloy
+    groups: docker
+    append: yes
+  register: alloy_docker_group
+
+- name: Create Alloy config directory
+  ansible.builtin.file:
+    path: /etc/alloy
+    state: directory
+    mode: "755"
+
+- name: Copy Alloy config from template
+  ansible.builtin.template:
+    src: config.alloy.j2
+    dest: /etc/alloy/config.alloy
+    mode: "644"
+  register: config_deployed
+
+- name: Enable and restart Alloy
+  ansible.builtin.systemd:
+    name: alloy
+    state: restarted
+    enabled: yes
+    daemon_reload: yes
+  when: config_deployed is changed or alloy_docker_group is changed

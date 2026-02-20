@@ -6,6 +6,12 @@ docker_hosts:
       ansible_user: root
       ansible_ssh_private_key_file: /tmp/key
 
+    forgejo-runner:
+      ansible_host: 10.10.4.8
+      ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
+      ansible_user: root
+      ansible_ssh_private_key_file: /tmp/key
+
     parents-server:
       ansible_host: 10.10.10.5
       ansible_password: !vault |
@@ -247,8 +253,11 @@ windows_hosts:
 
 oracle_cloud_hosts:
   hosts:
-    minecraft.greenappleton.com:
+    chat.greenappleton.com:
       ansible_user: ubuntu
+      ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
+      ansible_ssh_private_key_file: /tmp/key
+    
 
 k3s_hosts:
   hosts:

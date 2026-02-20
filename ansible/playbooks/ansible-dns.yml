@@ -2,9 +2,9 @@
   become: yes
   roles:
     - roles/enable-auto-update
-    - roles/install-zabbix-agent2
     - roles/set-pihole-dns
     - roles/set-pihole-hosts
+    - roles/install-zabbix-agent2
     - roles/install-alloy-ubuntu
   vars:
     SEQ_API_KEY: !vault |

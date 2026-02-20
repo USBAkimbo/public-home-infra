@@ -1,0 +1,36 @@
+- name: Ensure pka-downloader folder exists
+  ansible.builtin.file:
+    path: /mnt/ssd/pka-downloader
+    state: directory
+    mode: "770"
+
+- name: Download and extract ffmpeg binary
+  ansible.builtin.unarchive:
+    src: https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n8.0-latest-linux64-lgpl-8.0.tar.xz
+    dest: /mnt/ssd/pka-downloader/
+    remote_src: yes
+    extra_opts:
+      - --strip-components=2
+      - --wildcards
+      - "*/bin/ffmpeg"
+    creates: /mnt/ssd/pka-downloader/ffmpeg
+
+- name: Ensure ffmpeg binary has execution permissions
+  ansible.builtin.file:
+    path: /mnt/ssd/pka-downloader/ffmpeg
+    mode: "755"
+
+- name: Copy over pka-downloader script
+  ansible.builtin.template:
+    src: pka-downloader.sh.j2
+    dest: /mnt/ssd/pka-downloader/pka-downloader.sh
+    mode: "700"
+
+- name: Run pka-downloader every day at 11:00
+  ansible.builtin.cron:
+    name: pka-downloader
+    cron_file: pka-downloader
+    hour: "11"
+    minute: "0"
+    user: root
+    job: "/mnt/ssd/pka-downloader/pka-downloader.sh"

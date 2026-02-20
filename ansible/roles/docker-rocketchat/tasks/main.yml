@@ -1,0 +1,29 @@
+- name: Create Rocket.Chat base directory
+  ansible.builtin.file:
+    path: "{{ DOCKER_VOLUMES_ROOT }}/rocketchat"
+    state: directory
+    mode: "770"
+
+- name: Create MongoDB data directory with correct ownership
+  ansible.builtin.file:
+    path: "{{ DOCKER_VOLUMES_ROOT }}/rocketchat/mongodb_data"
+    state: directory
+    mode: "770"
+    owner: "{{ MONGODB_USER_ID }}"
+    group: "{{ MONGODB_USER_ID }}"
+
+- name: Copy over docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ DOCKER_VOLUMES_ROOT }}/rocketchat/docker-compose.yml"
+    mode: "770"
+
+- name: Start compose stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ DOCKER_VOLUMES_ROOT }}/rocketchat"
+    project_name: rocketchat
+
+- name: Cleanup compose file
+  ansible.builtin.file:
+    path: "{{ DOCKER_VOLUMES_ROOT }}/rocketchat/docker-compose.yml"
+    state: absent

@@ -1,0 +1,27 @@
+- name: Create imgur-proxy directory
+  ansible.builtin.file:
+    path: "{{ DOCKER_VOLUMES_ROOT }}/imgur-proxy"
+    state: directory
+    mode: "770"
+
+- name: Copy nginx.conf template
+  ansible.builtin.template:
+    src: nginx.conf.j2
+    dest: "{{ DOCKER_VOLUMES_ROOT }}/imgur-proxy/nginx.conf"
+    mode: "644"
+
+- name: Copy docker-compose.yml template
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ DOCKER_VOLUMES_ROOT }}/imgur-proxy/docker-compose.yml"
+    mode: "770"
+
+- name: Start compose stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ DOCKER_VOLUMES_ROOT }}/imgur-proxy"
+    project_name: imgur-proxy
+
+- name: Cleanup compose file
+  ansible.builtin.file:
+    path: "{{ DOCKER_VOLUMES_ROOT }}/imgur-proxy/docker-compose.yml"
+    state: absent

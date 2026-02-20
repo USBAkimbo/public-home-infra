@@ -3,7 +3,7 @@ services:
   # All containers force their network traffic through this container
   gluetun:
     container_name: gluetun
-    image: ghcr.io/qdm12/gluetun:v3.41.0
+    image: ghcr.io/qdm12/gluetun:v3.41.1
     restart: always
     cap_add:
       - NET_ADMIN
@@ -147,7 +147,7 @@ services:
 
   transmission:
     container_name: transmission
-    image: lscr.io/linuxserver/transmission:4.0.6
+    image: lscr.io/linuxserver/transmission:4.1.0
     restart: always
     network_mode: service:gluetun
     environment:
@@ -176,7 +176,7 @@ services:
 
   bazarr:
     container_name: bazarr
-    image: lscr.io/linuxserver/bazarr:1.5.4
+    image: lscr.io/linuxserver/bazarr:1.5.5
     restart: always
     network_mode: service:gluetun
     environment:
@@ -190,7 +190,7 @@ services:
 
   dispatcharr:
     container_name: dispatcharr
-    image: ghcr.io/dispatcharr/dispatcharr:0.17.0
+    image: ghcr.io/dispatcharr/dispatcharr:0.19.0
     restart: always
     network_mode: service:gluetun
     volumes:

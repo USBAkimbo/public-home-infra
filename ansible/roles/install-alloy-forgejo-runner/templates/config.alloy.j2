@@ -1,0 +1,83 @@
+local.file_match "local_files" {
+  path_targets = [
+    {
+      __path__   = "/var/log/*.log",
+      job        = "varlogs",
+      hostname   = constants.hostname,
+    },
+    {
+      __path__   = "/var/log/*/*.log",
+      job        = "varlogs_recursive",
+      hostname   = constants.hostname,
+    },
+  ]
+  sync_period = "5s"
+}
+
+loki.source.file "log_scrape" {
+  targets    = local.file_match.local_files.targets
+  forward_to = [loki.write.loki_server.receiver]
+  tail_from_end = true
+}
+
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+loki.source.docker "docker_scrape" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.docker.containers.targets
+  forward_to = [loki.relabel.docker_labels.receiver]
+}
+
+loki.relabel "docker_labels" {
+  forward_to = [loki.write.loki_server.receiver]
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    target_label  = "container_name"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_image"]
+    target_label  = "image"
+  }
+  rule {
+    replacement  = "docker"
+    target_label = "job"
+  }
+  rule {
+    replacement  = constants.hostname
+    target_label = "hostname"
+  }
+}
+
+loki.source.journal "journal_reader" {
+  forward_to = [loki.relabel.journal_labels.receiver]
+  labels = {
+    job      = "systemd-journal",
+    hostname = constants.hostname,
+  }
+}
+
+loki.relabel "journal_labels" {
+  forward_to = [loki.write.loki_server.receiver]
+
+  rule {
+    source_labels = ["__journal__systemd_unit"]
+    target_label  = "unit"
+  }
+  rule {
+    source_labels = ["__journal_priority_keyword"]
+    target_label  = "level"
+  }
+  rule {
+    source_labels = ["__journal_syslog_identifier"]
+    target_label  = "syslog_identifier"
+  }
+}
+
+loki.write "loki_server" {
+  endpoint {
+    url = "http://{{ LOKI_IP }}:3100/loki/api/v1/push"
+  }
+}
