@@ -1,14 +1,14 @@
-name: "Build Speedtest Docker container"
+name: "Build yt-dlp container"
 
 on:
   workflow_dispatch:
   push:
     branches: main
     paths:
-      - docker/speedtest/**
-      - .github/workflows/docker-speedtest.yml
-#  schedule:
-#    - cron: 0 0 1 * * # 1st of every month at 00:00
+      - docker/yt-dlp/**
+      - .forgejo/workflows/docker-yt-dlp.yml
+  schedule:
+    - cron: 0 0 1 * * # 1st of every month at 00:00
 
 jobs:
   docker:
@@ -33,8 +33,8 @@ jobs:
     - name: Build and push
       uses: docker/build-push-action@v6
       with:
-        file: docker/speedtest/Dockerfile
+        file: docker/yt-dlp/Dockerfile
         push: true
         tags: |
-          77cla77/speedtest:latest
-          77cla77/speedtest:${{ env.dt }}
+          77cla77/yt-dlp:latest
+          77cla77/yt-dlp:${{ env.dt }}

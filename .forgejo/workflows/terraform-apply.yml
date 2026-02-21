@@ -1,9 +1,10 @@
-name: "Terraform Plan"
+name: "Terraform Apply"
 
 on:
   workflow_dispatch:
-  push:
-    paths: terraform/**
+# push:
+#    branches: main
+#    paths: terraform/**
 
 permissions:
   contents: read
@@ -18,18 +19,18 @@ defaults:
 
 jobs:
   terraform:
-    name: "Terraform Plan"
-    runs-on: self-hosted
+    name: "Terraform Apply"
+    runs-on: forgejo-runner
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Terraform init
         run: |
           cd terraform
           terraform init
 
-      - name: Terraform plan
+      - name: Terraform apply
         run: |
           cd terraform
-          terraform plan -var 'pm_api_url=${{ secrets.PM_API_URL }}' -var 'pm_user=${{ secrets.PM_USER }}' -var 'pm_password=${{ secrets.PM_PASSWORD }}'
+          terraform apply -auto-approve -var 'pm_api_url=${{ secrets.PM_API_URL }}' -var 'pm_user=${{ secrets.PM_USER }}' -var 'pm_password=${{ secrets.PM_PASSWORD }}'

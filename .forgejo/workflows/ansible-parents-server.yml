@@ -1,0 +1,45 @@
+name: "Ansible - Parents Server"
+
+on:
+  workflow_dispatch:
+  push:
+    branches: main
+    paths:
+      - ansible/**
+      - .forgejo/workflows/ansible-parents-server.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  ansible:
+    name: "Ansible Run"
+    runs-on: forgejo-runner
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Run playbook
+        run: |
+          cd ansible
+          echo ${{ secrets.ANSIBLE_VAULT_KEY }} >> vault-pass
+          echo ${{ secrets.SSH_HOST_KEY }} | base64 -d >> /tmp/key
+          chmod 600 /tmp/key
+          dos2unix /tmp/key
+          export ANSIBLE_FORCE_COLOR=1
+          export ANSIBLE_HOST_KEY_CHECKING=False
+          ansible-playbook -i hosts --vault-password-file vault-pass playbooks/ansible-parents-server.yml
+
+      - name: Cleanup
+        if: always()
+        run: |
+          cd ansible
+          rm -f vault-pass /tmp/key

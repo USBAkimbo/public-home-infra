@@ -1,4 +1,4 @@
-name: "Ansible - Parents Server"
+name: "Ansible - Oracle Cloud Server"
 
 on:
   workflow_dispatch:
@@ -6,7 +6,7 @@ on:
     branches: main
     paths:
       - ansible/**
-      - .github/workflows/ansible-parents-server.yml
+      - .forgejo/workflows/ansible-oci-server.yml
 
 permissions:
   contents: read
@@ -22,30 +22,24 @@ defaults:
 jobs:
   ansible:
     name: "Ansible Run"
-    runs-on: arc-runner-set
+    runs-on: forgejo-runner
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Create secrets
-        run: |
-          cd ansible
-          echo ${{ secrets.ANSIBLE_VAULT_KEY }} >> vault-pass
-          chmod 600 vault-pass
-          echo ${{ secrets.SSH_HOST_KEY }} | base64 -d >> /tmp/key
-          dos2unix /tmp/key
-          chmod 600 /tmp/key
+        uses: actions/checkout@v6
 
       - name: Run playbook
         run: |
           cd ansible
+          echo ${{ secrets.ANSIBLE_VAULT_KEY }} >> vault-pass
+          echo ${{ secrets.SSH_HOST_KEY }} | base64 -d >> /tmp/key
+          chmod 600 /tmp/key
+          dos2unix /tmp/key
           export ANSIBLE_FORCE_COLOR=1
           export ANSIBLE_HOST_KEY_CHECKING=False
-          ansible-playbook -i hosts --vault-password-file vault-pass actions-playbooks/ansible-parents-server.yml
+          ansible-playbook -i hosts --vault-password-file vault-pass playbooks/ansible-oci-server.yml
 
-      - name: Cleanup the vault secret, key and playbook
+      - name: Cleanup
         if: always()
         run: |
           cd ansible
-          rm -f vault-pass
-          rm -f /tmp/key
+          rm -f vault-pass /tmp/key

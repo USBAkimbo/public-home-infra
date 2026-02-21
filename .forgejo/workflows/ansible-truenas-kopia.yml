@@ -1,4 +1,4 @@
-name: "Ansible - DNS"
+name: "Ansible - TrueNAS Kopia Backup Config"
 
 on:
   workflow_dispatch:
@@ -6,7 +6,7 @@ on:
     branches: main
     paths:
       - ansible/**
-      - .github/workflows/ansible-dns.yml
+      - .forgejo/workflows/ansible-truenas-kopia.yml
 
 permissions:
   contents: read
@@ -22,21 +22,24 @@ defaults:
 jobs:
   ansible:
     name: "Ansible Run"
-    runs-on: arc-runner-set
+    runs-on: forgejo-runner
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Run playbook
         run: |
           cd ansible
           echo ${{ secrets.ANSIBLE_VAULT_KEY }} >> vault-pass
+          echo ${{ secrets.SSH_HOST_KEY }} | base64 -d >> /tmp/key
+          chmod 600 /tmp/key
+          dos2unix /tmp/key
           export ANSIBLE_FORCE_COLOR=1
           export ANSIBLE_HOST_KEY_CHECKING=False
-          ansible-playbook -i hosts --vault-password-file vault-pass actions-playbooks/ansible-dns.yml
+          ansible-playbook -i hosts --vault-password-file vault-pass playbooks/ansible-truenas-kopia.yml
 
       - name: Cleanup
         if: always()
         run: |
           cd ansible
-          rm -f vault-pass
+          rm -f vault-pass /tmp/key
